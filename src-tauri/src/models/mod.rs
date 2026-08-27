@@ -55,6 +55,7 @@ impl Quote {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlertRule {
+    #[serde(default)]
     pub id: String,
     pub stock_code: String,
     pub rule_type: AlertRuleType,
@@ -63,11 +64,145 @@ pub struct AlertRule {
     pub last_triggered: Option<i64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AlertRuleType {
     ChangePercent { threshold: f64, direction: AlertDirection },
     PriceCross { target: f64, direction: AlertDirection },
     FastMove { percent: f64, window_seconds: u64 },
+}
+
+impl<'de> Deserialize<'de> for AlertRuleType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(tag = "kind", rename_all = "snake_case")]
+        enum Current {
+            ChangePercent { threshold: f64, direction: AlertDirection },
+            PriceCross { target: f64, direction: AlertDirection },
+            FastMove { percent: f64, window_seconds: u64 },
+        }
+
+        #[derive(Deserialize)]
+        #[serde(rename_all = "PascalCase")]
+        enum Legacy {
+            ChangePercent { threshold: f64, direction: AlertDirection },
+            PriceCross { target: f64, direction: AlertDirection },
+            FastMove { percent: f64, window_seconds: u64 },
+        }
+
+        if let Ok(value) = serde_json::Value::deserialize(deserializer) {
+            if let Ok(rule_type) = Current::deserialize(&value) {
+                return Ok(match rule_type {
+                    Current::ChangePercent { threshold, direction } => {
+                        AlertRuleType::ChangePercent { threshold, direction }
+                    }
+                    Current::PriceCross { target, direction } => {
+                        AlertRuleType::PriceCross { target, direction }
+                    }
+                    Current::FastMove { percent, window_seconds } => {
+                        AlertRuleType::FastMove { percent, window_seconds }
+                    }
+                });
+            }
+
+            if let Ok(rule_type) = Legacy::deserialize(&value) {
+                return Ok(match rule_type {
+                    Legacy::ChangePercent { threshold, direction } => {
+                        AlertRuleType::ChangePercent { threshold, direction }
+                    }
+                    Legacy::PriceCross { target, direction } => {
+                        AlertRuleType::PriceCross { target, direction }
+                    }
+                    Legacy::FastMove { percent, window_seconds } => {
+                        AlertRuleType::FastMove { percent, window_seconds }
+                    }
+                });
+            }
+
+            return Err(serde::de::Error::custom("invalid alert rule type"));
+        }
+
+        Err(serde::de::Error::custom("invalid alert rule type"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn alert_rule_accepts_frontend_payload_without_id() {
+        let payload = r#"{
+            "stock_code": "600519",
+            "rule_type": {
+                "kind": "change_percent",
+                "threshold": 3,
+                "direction": "both"
+            },
+            "enabled": true,
+            "cooldown_seconds": 300,
+            "last_triggered": null
+        }"#;
+
+        let rule: AlertRule = serde_json::from_str(payload).expect("frontend payload must deserialize");
+        assert_eq!(rule.id, "");
+        assert!(matches!(
+            rule.rule_type,
+            AlertRuleType::ChangePercent {
+                threshold: 3.0,
+                direction: AlertDirection::Both,
+            }
+        ));
+    }
+
+    #[test]
+    fn alert_rule_round_trips_frontend_shape() {
+        let rule = AlertRule {
+            id: "rule_1".into(),
+            stock_code: "00700".into(),
+            rule_type: AlertRuleType::PriceCross {
+                target: 350.0,
+                direction: AlertDirection::Up,
+            },
+            enabled: true,
+            cooldown_seconds: 60,
+            last_triggered: None,
+        };
+
+        let json = serde_json::to_value(&rule).expect("rule must serialize");
+        assert_eq!(json["rule_type"]["kind"], "price_cross");
+        assert_eq!(json["rule_type"]["target"], 350.0);
+        assert_eq!(json["rule_type"]["direction"], "up");
+    }
+
+    #[test]
+    fn alert_rule_accepts_v1_pascal_case_shape() {
+        let payload = r#"{
+            "id": "rule_old",
+            "stock_code": "600519",
+            "rule_type": {
+                "ChangePercent": {
+                    "threshold": 3,
+                    "direction": "both"
+                }
+            },
+            "enabled": true,
+            "cooldown_seconds": 300,
+            "last_triggered": null
+        }"#;
+
+        let rule: AlertRule = serde_json::from_str(payload).expect("v1 rule must deserialize");
+        assert!(matches!(
+            rule.rule_type,
+            AlertRuleType::ChangePercent {
+                threshold: 3.0,
+                direction: AlertDirection::Both,
+            }
+        ));
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

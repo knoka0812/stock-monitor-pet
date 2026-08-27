@@ -1,4 +1,8 @@
 import { useEffect, useState } from 'react';
+import alertAsset from '../../assets/pet/alert.png';
+import downAsset from '../../assets/pet/down.png';
+import neutralAsset from '../../assets/pet/neutral.png';
+import upAsset from '../../assets/pet/up.png';
 import { api } from '../../services/api';
 import type {
   AlertDirection,
@@ -105,14 +109,18 @@ export default function SettingsWindow() {
   return (
     <div className="settings-window">
       <div className="settings-sidebar">
+        <div className="settings-brand">
+          <strong>Stock Pet</strong>
+          <span>MONITOR STUDIO</span>
+        </div>
         <div className={`settings-tab ${tab === 'stocks' ? 'active' : ''}`} onClick={() => setTab('stocks')}>
-          📈 股票管理
+          股票管理
         </div>
         <div className={`settings-tab ${tab === 'alerts' ? 'active' : ''}`} onClick={() => setTab('alerts')}>
-          🔔 提醒规则
+          提醒规则
         </div>
         <div className={`settings-tab ${tab === 'pet' ? 'active' : ''}`} onClick={() => setTab('pet')}>
-          🐱 宠物外观
+          宠物外观
         </div>
       </div>
       <div className="settings-content">
@@ -463,10 +471,15 @@ function PetTab({
               onClick={() => onChange({ skin })}
             >
               <div className="skin-preview">
-                {skin === 'orange_cat' && '🐱 橘猫'}
-                {skin === 'gray_cat' && '🐈 灰猫'}
-                {skin === 'calico_cat' && '🐈‍⬛ 三花猫'}
-                {skin === 'custom' && '🖼️ 自定义'}
+                {skin === 'orange_cat' ? (
+                  <img src={neutralAsset} alt="" />
+                ) : skin === 'gray_cat' ? (
+                  <img src={upAsset} alt="" />
+                ) : skin === 'calico_cat' ? (
+                  <img src={downAsset} alt="" />
+                ) : (
+                  <img src={alertAsset} alt="" />
+                )}
               </div>
             </div>
           ))}

@@ -212,7 +212,7 @@ fn open_settings(app: AppHandle) -> Result<(), String> {
     WebviewWindowBuilder::new(
         &app,
         "settings",
-        tauri::WebviewUrl::App("index.html?window=settings".into()),
+        tauri::WebviewUrl::App("index.html".into()),
     )
     .title("股票监测宠物 - 设置")
     .inner_size(720.0, 560.0)
@@ -246,6 +246,12 @@ pub fn setup_state(app: &AppHandle) -> AppState {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())

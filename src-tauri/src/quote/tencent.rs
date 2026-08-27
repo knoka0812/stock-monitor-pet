@@ -202,7 +202,7 @@ mod tests {
 
     #[test]
     fn test_parse_ashare_line() {
-        let provider = TencentProvider::new();
+        let _provider = TencentProvider::new();
         // 构造一个模拟输入，测试本地解析函数
         let line = r#"v_sh600519="1~贵州茅台~600519~1680.00~1700.00~1690.00~123456~...""#;
         assert!(line.starts_with("v_sh"));
