@@ -19,7 +19,8 @@ const MOOD_ASSETS = {
 } as const;
 
 export default function CatPet({ size, mood, skin, customAsset }: CatPetProps) {
-  const asset = skin === 'custom' && customAsset ? customAsset : MOOD_ASSETS[mood];
+  const asset =
+    skin === 'custom' && customAsset ? customAsset : MOOD_ASSETS[mood];
 
   return (
     <img

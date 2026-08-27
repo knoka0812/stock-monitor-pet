@@ -42,6 +42,13 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
 
   useEffect(() => {
     if (!settings) return;
+    windowRef.current.setAlwaysOnTop(settings.always_on_top).catch((e) => {
+      console.error('setAlwaysOnTop error', e);
+    });
+  }, [settings?.always_on_top]);
+
+  useEffect(() => {
+    if (!settings) return;
     const interval = setInterval(refreshQuotes, settings.refresh_interval_secs * 1000);
     return () => clearInterval(interval);
   }, [settings?.refresh_interval_secs, stocks.length]);

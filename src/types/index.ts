@@ -49,7 +49,7 @@ export interface AlertEvent {
   timestamp: number;
 }
 
-export type PetSkin = 'orange_cat' | 'gray_cat' | 'calico_cat' | 'custom';
+export type PetSkin = 'default' | 'custom';
 
 export interface CustomPetAssets {
   up: string | null;

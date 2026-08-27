@@ -232,6 +232,7 @@ pub struct PetSettings {
     pub refresh_interval_secs: u64,
     pub current_stock_code: Option<String>,
     pub skin: PetSkin,
+    #[serde(default)]
     pub custom_assets: CustomPetAssets,
 }
 
@@ -243,19 +244,31 @@ impl Default for PetSettings {
             always_on_top: true,
             refresh_interval_secs: 10,
             current_stock_code: None,
-            skin: PetSkin::OrangeCat,
+            skin: PetSkin::Default,
             custom_assets: CustomPetAssets::default(),
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PetSkin {
-    OrangeCat,
-    GrayCat,
-    CalicoCat,
+    #[serde(alias = "orange_cat", alias = "gray_cat", alias = "calico_cat")]
+    Default,
     Custom,
+}
+
+#[cfg(test)]
+mod pet_skin_tests {
+    use super::*;
+
+    #[test]
+    fn pet_skin_migrates_v1_variants() {
+        for value in ["orange_cat", "gray_cat", "calico_cat"] {
+            let skin: PetSkin = serde_json::from_value(serde_json::json!(value)).unwrap();
+            assert_eq!(skin, PetSkin::Default);
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
