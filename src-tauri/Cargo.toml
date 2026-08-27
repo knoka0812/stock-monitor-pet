@@ -1,0 +1,35 @@
+[package]
+name = "stock-pet"
+version = "0.1.0"
+description = "股票监测桌面宠物"
+authors = ["stock-pet"]
+edition = "2021"
+
+[lib]
+name = "stock_pet_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
+tauri-plugin-opener = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-process = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "gzip", "blocking"] }
+tokio = { version = "1", features = ["full"] }
+encoding_rs = "0.8"
+directories = "5"
+chrono = { version = "0.4", features = ["serde"] }
+once_cell = "1"
+parking_lot = "0.12"
+rand = "0.8"
+thiserror = "1"
+url = "2"
+urlencoding = "2"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }

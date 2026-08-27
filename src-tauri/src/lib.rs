@@ -1,0 +1,283 @@
+mod alert;
+mod models;
+mod quote;
+mod storage;
+
+use alert::AlertEngine;
+use models::*;
+use parking_lot::Mutex;
+use quote::{QuoteProvider, TencentProvider, detect_market_and_symbol};
+use storage::{AppData, Storage};
+use tauri::{AppHandle, Emitter, Manager, State};
+
+pub struct AppState {
+    pub storage: Storage,
+    pub quote_provider: TencentProvider,
+    pub alert_engine: Mutex<AlertEngine>,
+    pub data: Mutex<AppData>,
+    pub app: Option<AppHandle>,
+}
+
+#[tauri::command]
+fn get_stocks(state: State<AppState>) -> Result<Vec<Stock>, String> {
+    Ok(state.data.lock().stocks.clone())
+}
+
+#[tauri::command]
+fn add_stock(code: String, state: State<AppState>) -> Result<Stock, String> {
+    let (market, symbol) = detect_market_and_symbol(&code)
+        .ok_or_else(|| format!("无法识别股票代码: {}", code))?;
+
+    // 拉一次行情验证并获取名称
+    let quote = state
+        .quote_provider
+        .fetch_quote(&symbol)
+        .map_err(|e| e.to_string())?;
+
+    let stock = Stock {
+        code: quote.code.clone(),
+        name: quote.name.clone(),
+        market,
+        tencent_symbol: symbol,
+    };
+
+    let mut data = state.data.lock();
+    if data.stocks.iter().any(|s| s.code == stock.code) {
+        return Err(format!("股票 {} 已在监控列表中", stock.code));
+    }
+    if data.settings.current_stock_code.is_none() {
+        data.settings.current_stock_code = Some(stock.code.clone());
+    }
+    data.stocks.push(stock.clone());
+    state.storage.save(&data).map_err(|e| e.to_string())?;
+    if let Some(app) = state.app.as_ref() {
+        let _ = app.emit("data-changed", ());
+    }
+    Ok(stock)
+}
+
+#[tauri::command]
+fn remove_stock(code: String, state: State<AppState>) -> Result<(), String> {
+    let mut data = state.data.lock();
+    data.stocks.retain(|s| s.code != code);
+    data.rules.retain(|r| r.stock_code != code);
+    if data.settings.current_stock_code.as_deref() == Some(&code) {
+        data.settings.current_stock_code = data.stocks.first().map(|s| s.code.clone());
+    }
+    state.storage.save(&data).map_err(|e| e.to_string())?;
+    if let Some(app) = state.app.as_ref() {
+        let _ = app.emit("data-changed", ());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn search_stock(keyword: String, state: State<AppState>) -> Result<Vec<Stock>, String> {
+    state
+        .quote_provider
+        .search(&keyword)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_quotes(state: State<AppState>) -> Result<Vec<Quote>, String> {
+    let symbols: Vec<String> = state
+        .data
+        .lock()
+        .stocks
+        .iter()
+        .map(|s| s.tencent_symbol.clone())
+        .collect();
+    if symbols.is_empty() {
+        return Ok(vec![]);
+    }
+    state
+        .quote_provider
+        .fetch_quotes(&symbols)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_quote(code: String, state: State<AppState>) -> Result<Quote, String> {
+    let (_, symbol) = detect_market_and_symbol(&code)
+        .ok_or_else(|| format!("无法识别股票代码: {}", code))?;
+    state
+        .quote_provider
+        .fetch_quote(&symbol)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_rules(state: State<AppState>) -> Result<Vec<AlertRule>, String> {
+    Ok(state.data.lock().rules.clone())
+}
+
+#[tauri::command]
+fn add_rule(rule: AlertRule, state: State<AppState>) -> Result<AlertRule, String> {
+    let mut data = state.data.lock();
+    let id = format!("rule_{}", chrono::Utc::now().timestamp_millis());
+    let mut new_rule = rule;
+    new_rule.id = id;
+    data.rules.push(new_rule.clone());
+    state.storage.save(&data).map_err(|e| e.to_string())?;
+    if let Some(app) = state.app.as_ref() {
+        let _ = app.emit("data-changed", ());
+    }
+    Ok(new_rule)
+}
+
+#[tauri::command]
+fn update_rule(rule: AlertRule, state: State<AppState>) -> Result<(), String> {
+    let mut data = state.data.lock();
+    if let Some(existing) = data.rules.iter_mut().find(|r| r.id == rule.id) {
+        *existing = rule;
+    }
+    state.storage.save(&data).map_err(|e| e.to_string())?;
+    if let Some(app) = state.app.as_ref() {
+        let _ = app.emit("data-changed", ());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn delete_rule(rule_id: String, state: State<AppState>) -> Result<(), String> {
+    let mut data = state.data.lock();
+    data.rules.retain(|r| r.id != rule_id);
+    state.storage.save(&data).map_err(|e| e.to_string())?;
+    if let Some(app) = state.app.as_ref() {
+        let _ = app.emit("data-changed", ());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn get_settings(state: State<AppState>) -> Result<PetSettings, String> {
+    Ok(state.data.lock().settings.clone())
+}
+
+#[tauri::command]
+fn update_settings(settings: PetSettings, state: State<AppState>) -> Result<(), String> {
+    let mut data = state.data.lock();
+    data.settings = settings;
+    state.storage.save(&data).map_err(|e| e.to_string())?;
+    if let Some(app) = state.app.as_ref() {
+        let _ = app.emit("data-changed", ());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn get_current_stock_code(state: State<AppState>) -> Result<Option<String>, String> {
+    Ok(state.data.lock().settings.current_stock_code.clone())
+}
+
+#[tauri::command]
+fn set_current_stock_code(code: Option<String>, state: State<AppState>) -> Result<(), String> {
+    let mut data = state.data.lock();
+    data.settings.current_stock_code = code;
+    state.storage.save(&data).map_err(|e| e.to_string())?;
+    if let Some(app) = state.app.as_ref() {
+        let _ = app.emit("data-changed", ());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn evaluate_alerts(code: String, state: State<AppState>) -> Result<Vec<AlertEvent>, String> {
+    let (_, symbol) = detect_market_and_symbol(&code)
+        .ok_or_else(|| format!("无法识别股票代码: {}", code))?;
+    let quote = state
+        .quote_provider
+        .fetch_quote(&symbol)
+        .map_err(|e| e.to_string())?;
+
+    let mut data = state.data.lock();
+    let mut alert_engine = state.alert_engine.lock();
+    let events = alert_engine.evaluate(&mut data.rules, &quote);
+    state.storage.save(&data).map_err(|e| e.to_string())?;
+    Ok(events)
+}
+
+#[tauri::command]
+fn open_settings(app: AppHandle) -> Result<(), String> {
+    use tauri::WebviewWindowBuilder;
+
+    if let Some(existing) = app.get_webview_window("settings") {
+        let _ = existing.show();
+        let _ = existing.unminimize();
+        let _ = existing.set_focus();
+        return Ok(());
+    }
+
+    WebviewWindowBuilder::new(
+        &app,
+        "settings",
+        tauri::WebviewUrl::App("index.html?window=settings".into()),
+    )
+    .title("股票监测宠物 - 设置")
+    .inner_size(720.0, 560.0)
+    .min_inner_size(600.0, 480.0)
+    .resizable(true)
+    .decorations(true)
+    .always_on_top(false)
+    .skip_taskbar(false)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+pub fn setup_state(app: &AppHandle) -> AppState {
+    let app_dir = app
+        .path()
+        .app_data_dir()
+        .unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let storage = Storage::new(app_dir);
+    let data = storage.load();
+    AppState {
+        storage,
+        quote_provider: TencentProvider::new(),
+        alert_engine: Mutex::new(AlertEngine::new()),
+        data: Mutex::new(data),
+        app: Some(app.clone()),
+    }
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_process::init())
+        .setup(|app| {
+            let state = setup_state(&app.handle());
+            app.manage(state);
+
+            // 设置透明背景
+            if let Some(win) = app.get_webview_window("main") {
+                let _ = win.set_background_color(Some(tauri::utils::config::Color(0, 0, 0, 0)));
+            }
+
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            get_stocks,
+            add_stock,
+            remove_stock,
+            search_stock,
+            get_quotes,
+            get_quote,
+            get_rules,
+            add_rule,
+            update_rule,
+            delete_rule,
+            get_settings,
+            update_settings,
+            get_current_stock_code,
+            set_current_stock_code,
+            evaluate_alerts,
+            open_settings,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running stock pet application");
+}

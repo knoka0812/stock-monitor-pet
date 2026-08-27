@@ -1,0 +1,32 @@
+import { invoke } from '@tauri-apps/api/core';
+import type {
+  Stock,
+  Quote,
+  AlertRule,
+  AlertEvent,
+  PetSettings,
+} from '../types';
+
+export const api = {
+  getStocks: (): Promise<Stock[]> => invoke('get_stocks'),
+  addStock: (code: string): Promise<Stock> => invoke('add_stock', { code }),
+  removeStock: (code: string): Promise<void> => invoke('remove_stock', { code }),
+  searchStock: (keyword: string): Promise<Stock[]> =>
+    invoke('search_stock', { keyword }),
+  getQuotes: (): Promise<Quote[]> => invoke('get_quotes'),
+  getQuote: (code: string): Promise<Quote> => invoke('get_quote', { code }),
+  getRules: (): Promise<AlertRule[]> => invoke('get_rules'),
+  addRule: (rule: Omit<AlertRule, 'id'>): Promise<AlertRule> =>
+    invoke('add_rule', { rule }),
+  updateRule: (rule: AlertRule): Promise<void> => invoke('update_rule', { rule }),
+  deleteRule: (ruleId: string): Promise<void> => invoke('delete_rule', { ruleId }),
+  getSettings: (): Promise<PetSettings> => invoke('get_settings'),
+  updateSettings: (settings: PetSettings): Promise<void> =>
+    invoke('update_settings', { settings }),
+  getCurrentStockCode: (): Promise<string | null> =>
+    invoke('get_current_stock_code'),
+  setCurrentStockCode: (code: string | null): Promise<void> =>
+    invoke('set_current_stock_code', { code }),
+  evaluateAlerts: (code: string): Promise<AlertEvent[]> =>
+    invoke('evaluate_alerts', { code }),
+};
