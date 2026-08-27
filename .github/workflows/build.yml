@@ -20,7 +20,7 @@ jobs:
           - platform: macos-latest
             args: --target x86_64-apple-darwin
           - platform: windows-latest
-            args: ''
+            args: --bundles nsis
           - platform: ubuntu-22.04
             args: ''
 
@@ -60,8 +60,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: '股票监测宠物 v__VERSION__'
-          releaseBody: '桌面股票监测宠物'
+          releaseName: 'Stock Monitor Pet v__VERSION__'
+          releaseBody: 'Desktop stock monitor pet app'
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
