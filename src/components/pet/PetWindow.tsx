@@ -6,7 +6,7 @@ import StockMenu from './StockMenu';
 import { api, waitForAppReady } from '../../services/api';
 import { applyTheme, createTranslator, localeFor } from '../../i18n';
 import type { PetSettings, Quote, Stock, AlertEvent } from '../../types';
-import { isTradingOpen } from '../../utils/trading';
+import { isMarketOpen, isTradingOpen } from '../../utils/trading';
 
 interface PetWindowProps {
   onOpenSettings: () => void;
@@ -19,7 +19,6 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [walking, setWalking] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [marketOpen, setMarketOpen] = useState(true);
   const [alerts, setAlerts] = useState<AlertEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const windowRef = useRef(getCurrentWindow());
@@ -63,9 +62,9 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
   useEffect(() => {
     if (!settings) return;
     const interval = setInterval(() => {
-      const open = isTradingOpen(stocks.map((stock) => stock.market));
-      setMarketOpen(open);
-      if (open) void refreshQuotes();
+      if (isTradingOpen(stocks.map((stock) => stock.market))) {
+        void refreshQuotes();
+      }
     }, settings.refresh_interval_secs * 1000);
     return () => clearInterval(interval);
   }, [settings?.refresh_interval_secs, stocks.length]);
@@ -125,12 +124,8 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
       setStocks(s);
       setSettings(settingsData);
       if (s.length > 0) {
-        const open = isTradingOpen(s.map((stock) => stock.market));
-        setMarketOpen(open);
-        if (open) await refreshQuotes();
-        else await refreshQuotes(false);
+        await refreshQuotes();
       } else {
-        setMarketOpen(true);
         setLoading(false);
       }
     } catch (e) {
@@ -140,17 +135,16 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
     }
   }
 
-  async function refreshQuotes(evaluateAlerts = true) {
+  async function refreshQuotes() {
     try {
       const qs = await api.getQuotes();
       setQuotes(qs);
       setLoading(false);
 
-      if (!evaluateAlerts) return;
+      const tradableQuotes = qs.filter((quote) => isMarketOpen(quote.market));
+      if (tradableQuotes.length === 0) return;
 
-      if (qs.length === 0) return;
-
-      const events = await api.evaluateAlertsForQuotes(qs);
+      const events = await api.evaluateAlertsForQuotes(tradableQuotes);
       if (events.length > 0) {
         const notifyKey = `${events[0].rule_id}-${events[0].timestamp}`;
         if (lastNotifiedKey.current !== notifyKey) {
@@ -206,12 +200,14 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
 
   const currentCode = settings?.current_stock_code ?? null;
   const currentQuote = quotes.find((q) => q.code === currentCode) ?? null;
+  const currentStock = stocks.find((stock) => stock.code === currentCode) ?? null;
+  const currentMarketOpen = currentStock ? isMarketOpen(currentStock.market) : true;
   const activeAlert =
     alerts.find((alert) => Date.now() / 1000 - alert.timestamp < 30) ?? null;
 
   const mood = (() => {
     if (!currentQuote) return 'neutral' as const;
-    if (!marketOpen) return 'neutral' as const;
+    if (!currentMarketOpen) return 'neutral' as const;
     if (alerts.length > 0 && Date.now() / 1000 - alerts[0].timestamp < 30) return 'alert' as const;
     if (currentQuote.change > 0) return 'up' as const;
     if (currentQuote.change < 0) return 'down' as const;
@@ -295,7 +291,7 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
               quote={currentQuote}
               loading={loading && stocks.length > 0}
               alert={activeAlert}
-              marketOpen={marketOpen}
+              marketOpen={currentMarketOpen}
               translate={translate}
             />
           </div>

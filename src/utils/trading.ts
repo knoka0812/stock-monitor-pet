@@ -46,38 +46,33 @@ function minutesOfDay(date: Date) {
   return date.getUTCHours() * 60 + date.getUTCMinutes();
 }
 
-export function isTradingOpen(markets: Market[]) {
-  if (markets.length === 0) return true;
-
+export function isMarketOpen(market: Market) {
   const asiaNow = new Date(Date.now() + 8 * 60 * 60 * 1000);
   const asiaDay = asiaNow.getUTCDay();
   const asiaMinutes = minutesOfDay(asiaNow);
   const asiaHoliday = CN_HOLIDAYS_2026.has(formatDateKey(asiaNow));
 
-  const hasAsia = markets.includes('ashare') || markets.includes('hk');
-  if (hasAsia) {
+  if (market === 'ashare' || market === 'hk') {
     if (asiaDay === 0 || asiaDay === 6 || asiaHoliday) return false;
-    const open =
+    return (
       (asiaMinutes >= 9 * 60 + 30 && asiaMinutes <= 11 * 60 + 30) ||
-      (asiaMinutes >= 13 * 60 && asiaMinutes <= 15 * 60);
-    if (open) return true;
+      (asiaMinutes >= 13 * 60 && asiaMinutes <= 15 * 60)
+    );
   }
 
-  if (markets.includes('us')) {
+  if (market === 'us') {
     const usNow = new Date(Date.now() - 5 * 60 * 60 * 1000);
     const usDay = usNow.getUTCDay();
     const usMinutes = minutesOfDay(usNow);
-    const open =
-      usDay !== 0 &&
-      usDay !== 6 &&
-      usMinutes >= 9 * 60 + 30 &&
-      usMinutes <= 16 * 60;
-    if (open) return true;
+    return (
+      usDay !== 0 && usDay !== 6 && usMinutes >= 9 * 60 + 30 && usMinutes <= 16 * 60
+    );
   }
 
-  if (markets.includes('gold')) {
-    if (asiaDay !== 0 && asiaDay !== 6) return true;
-  }
+  return asiaDay !== 0 && asiaDay !== 6;
+}
 
-  return false;
+export function isTradingOpen(markets: Market[]) {
+  if (markets.length === 0) return true;
+  return markets.some((market) => isMarketOpen(market));
 }
