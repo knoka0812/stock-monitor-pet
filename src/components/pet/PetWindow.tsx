@@ -3,7 +3,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import CatPet from './CatPet';
 import QuoteBubble from './QuoteBubble';
 import StockMenu from './StockMenu';
-import { api } from '../../services/api';
+import { api, waitForAppReady } from '../../services/api';
 import type { PetSettings, Quote, Stock, AlertEvent } from '../../types';
 
 interface PetWindowProps {
@@ -83,6 +83,7 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
 
   async function loadData() {
     try {
+      await waitForAppReady();
       const [s, settingsData] = await Promise.all([
         api.getStocks(),
         api.getSettings(),

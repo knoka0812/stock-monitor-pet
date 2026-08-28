@@ -3,7 +3,7 @@ import alertAsset from '../../assets/pet/alert.png';
 import downAsset from '../../assets/pet/down.png';
 import neutralAsset from '../../assets/pet/neutral.png';
 import upAsset from '../../assets/pet/up.png';
-import { api } from '../../services/api';
+import { api, waitForAppReady } from '../../services/api';
 import type {
   AlertDirection,
   AlertRule,
@@ -63,7 +63,18 @@ export default function SettingsWindow() {
   const [bootError, setBootError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadAll();
+    let cancelled = false;
+    (async () => {
+      try {
+        await waitForAppReady();
+        if (!cancelled) await loadAll();
+      } catch (error) {
+        if (!cancelled) setBootError(errorMessage(error));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function loadAll() {

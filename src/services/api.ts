@@ -7,6 +7,27 @@ import type {
   PetSettings,
 } from '../types';
 
+export async function waitForAppReady(timeoutMs = 15000) {
+  const startedAt = Date.now();
+  let lastError: unknown;
+
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      await invoke('get_stocks');
+      return;
+    } catch (error) {
+      lastError = error;
+      const message = String(error);
+      if (!/state not managed|not managed|not ready/i.test(message)) {
+        throw error;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 250));
+    }
+  }
+
+  throw lastError ?? new Error('后端服务未就绪');
+}
+
 export const api = {
   getStocks: (): Promise<Stock[]> => invoke('get_stocks'),
   addStock: (code: string): Promise<Stock> => invoke('add_stock', { code }),
