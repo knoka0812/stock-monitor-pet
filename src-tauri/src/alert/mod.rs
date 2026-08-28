@@ -208,6 +208,7 @@ mod tests {
         };
         Quote {
             code: code.to_string(),
+            symbol: code.to_string(),
             name: code.to_string(),
             market: Market::AShare,
             price,

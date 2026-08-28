@@ -36,7 +36,7 @@ pub fn detect_market_and_symbol(code: &str) -> Option<(Market, String)> {
 
     // 国际黄金（XAUUSD / 现货黄金）
     match code.as_str() {
-        "XAUUSD" | "XAU" | "GOLD" | "黄金" | "伦敦金" => {
+        "XAUUSD" | "XAU" | "GOLD" | "HF_XAU" | "黄金" | "伦敦金" => {
             return Some((Market::Gold, "hf_XAU".to_string()));
         }
         _ => {}
@@ -160,7 +160,7 @@ mod tests {
 
     #[test]
     fn test_detect_gold_keywords() {
-        for keyword in ["XAUUSD", "xauusd", "XAU", "GOLD", "黄金", "伦敦金"] {
+        for keyword in ["XAUUSD", "xauusd", "XAU", "GOLD", "hf_XAU", "HF_XAU", "黄金", "伦敦金"] {
             let (market, symbol) = detect_market_and_symbol(keyword).unwrap();
             assert_eq!(market, Market::Gold);
             assert_eq!(symbol, "hf_XAU");

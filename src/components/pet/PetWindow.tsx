@@ -128,7 +128,7 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
         const open = isTradingOpen(s.map((stock) => stock.market));
         setMarketOpen(open);
         if (open) await refreshQuotes();
-        else setLoading(false);
+        else await refreshQuotes(false);
       } else {
         setMarketOpen(true);
         setLoading(false);
@@ -140,11 +140,13 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
     }
   }
 
-  async function refreshQuotes() {
+  async function refreshQuotes(evaluateAlerts = true) {
     try {
       const qs = await api.getQuotes();
       setQuotes(qs);
       setLoading(false);
+
+      if (!evaluateAlerts) return;
 
       for (const q of qs) {
         try {
@@ -162,6 +164,7 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
       }
     } catch (e) {
       console.error('refreshQuotes error', e);
+      setLoading(false);
     }
   }
 
@@ -254,7 +257,7 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
   }
 
   const petSize = settings.size;
-  const bubbleWidth = 176;
+  const bubbleWidth = 198;
   const menuWidth = 280;
 
   return (

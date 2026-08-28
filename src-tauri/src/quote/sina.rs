@@ -131,6 +131,7 @@ fn parse_sina_line(symbol_part: &str, value_part: &str) -> Option<Quote> {
 
     Some(Quote {
         code,
+        symbol: symbol_part.to_lowercase(),
         name,
         market,
         price,

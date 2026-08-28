@@ -92,7 +92,7 @@ impl QuoteProvider for TencentProvider {
     fn search(&self, keyword: &str) -> Result<Vec<Stock>> {
         let keyword_trimmed = keyword.trim();
         let keyword_upper = keyword_trimmed.to_uppercase();
-        if matches!(keyword_upper.as_str(), "XAUUSD" | "XAU" | "GOLD")
+        if matches!(keyword_upper.as_str(), "XAUUSD" | "XAU" | "GOLD" | "HF_XAU")
             || matches!(keyword_trimmed, "黄金" | "伦敦金")
         {
             return Ok(vec![Stock {
@@ -235,6 +235,7 @@ fn parse_quote_body(body: &str) -> Result<Vec<Quote>> {
 
         quotes.push(Quote {
             code,
+            symbol: symbol_part.to_lowercase(),
             name,
             market,
             price,
@@ -283,6 +284,7 @@ fn parse_hf_quote(symbol_part: &str, value_part: &str) -> Option<Quote> {
 
     Some(Quote {
         code: "XAUUSD".to_string(),
+        symbol: symbol_part.to_lowercase(),
         name,
         market: Market::Gold,
         price,

@@ -263,7 +263,7 @@ export default function SettingsWindow() {
       const content = await api.exportConfig();
       if (window.showSaveFilePicker) {
         const handle = await window.showSaveFilePicker({
-          suggestedName: 'stock-monitor-pet-config.json',
+          suggestedName: 'pawtrader-config.json',
           types: [
             {
               description: translate('jsonFiles'),
@@ -280,7 +280,7 @@ export default function SettingsWindow() {
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement('a');
         anchor.href = url;
-        anchor.download = 'stock-monitor-pet-config.json';
+        anchor.download = 'pawtrader-config.json';
         document.body.appendChild(anchor);
         anchor.click();
         anchor.remove();
@@ -316,8 +316,8 @@ export default function SettingsWindow() {
     <div className="settings-window">
       <aside className="settings-sidebar">
         <div className="settings-brand">
-          <strong>Stock Pet</strong>
-          <span>MONITOR STUDIO</span>
+          <strong>PawTrader</strong>
+          <span>MARKET COMPANION</span>
         </div>
         {(['stocks', 'alerts', 'pet', 'backup', 'history'] as const).map((item) => (
           <button

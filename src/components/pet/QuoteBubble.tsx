@@ -56,7 +56,10 @@ export default function QuoteBubble({ quote, loading, alert, marketOpen = true, 
         <span>{sign}{quote.change.toFixed(2)}</span>
         <span>{sign}{quote.change_percent.toFixed(2)}%</span>
       </div>
-      <div className="bubble-footer">{timeStr}</div>
+      <div className="bubble-footer">
+        {!marketOpen && `${translate('lastClose')} · `}
+        {timeStr}
+      </div>
       <div className="bubble-tail" />
     </div>
   );

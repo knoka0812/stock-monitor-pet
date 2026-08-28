@@ -8,6 +8,7 @@ use models::*;
 use parking_lot::Mutex;
 use quote::{FallbackProvider, QuoteProvider, detect_market_and_symbol};
 use storage::{AppData, Storage};
+use std::collections::HashMap;
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 
 pub struct AppState {
@@ -84,10 +85,8 @@ async fn search_stock(keyword: String, state: State<'_, AppState>) -> Result<Vec
 
 #[tauri::command]
 async fn get_quotes(state: State<'_, AppState>) -> Result<Vec<Quote>, String> {
-    let symbols: Vec<String> = state
-        .data
-        .lock()
-        .stocks
+    let stocks = state.data.lock().stocks.clone();
+    let symbols: Vec<String> = stocks
         .iter()
         .map(|s| s.tencent_symbol.clone())
         .collect();
@@ -95,10 +94,30 @@ async fn get_quotes(state: State<'_, AppState>) -> Result<Vec<Quote>, String> {
         return Ok(vec![]);
     }
     let provider = state.quote_provider.clone();
-    tokio::task::spawn_blocking(move || provider.fetch_quotes(&symbols))
+    let mut quotes = tokio::task::spawn_blocking(move || provider.fetch_quotes(&symbols))
         .await
         .map_err(|e| e.to_string())?
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    let canonical_codes: HashMap<String, String> = stocks
+        .iter()
+        .map(|stock| (stock.tencent_symbol.to_lowercase(), stock.code.clone()))
+        .collect();
+    for quote in &mut quotes {
+        let raw_symbol = quote.symbol.to_lowercase();
+        let normalized_symbol = if let Some(code) = raw_symbol.strip_prefix("rt_hk") {
+            format!("hk{code}")
+        } else if let Some(code) = raw_symbol.strip_prefix("gb_") {
+            format!("us{code}")
+        } else {
+            raw_symbol
+        };
+        if let Some(code) = canonical_codes.get(&normalized_symbol) {
+            quote.code = code.clone();
+        }
+    }
+
+    Ok(quotes)
 }
 
 #[tauri::command]
@@ -248,7 +267,7 @@ async fn open_settings(app: AppHandle) -> Result<(), String> {
         "settings",
         tauri::WebviewUrl::App("settings.html".into()),
     )
-    .title("股票监测宠物 - 设置")
+    .title("PawTrader Settings")
     .inner_size(820.0, 620.0)
     .min_inner_size(620.0, 500.0)
     .resizable(true)
@@ -293,7 +312,7 @@ pub fn run() {
                     "main",
                     tauri::WebviewUrl::App("index.html".into()),
                 )
-                .title("股票监测宠物")
+                .title("PawTrader")
                 .inner_size(320.0, 280.0)
                 .resizable(false)
                 .decorations(false)

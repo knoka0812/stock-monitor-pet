@@ -31,6 +31,7 @@ pub struct Stock {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Quote {
     pub code: String,
+    pub symbol: String,
     pub name: String,
     pub market: Market,
     pub price: f64,
