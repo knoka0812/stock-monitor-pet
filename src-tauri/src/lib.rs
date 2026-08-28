@@ -227,24 +227,23 @@ fn set_current_stock_code(code: Option<String>, state: State<AppState>) -> Resul
 }
 
 #[tauri::command]
-async fn evaluate_alerts(code: String, state: State<'_, AppState>) -> Result<Vec<AlertEvent>, String> {
-    let (_, symbol) = detect_market_and_symbol(&code)
-        .ok_or_else(|| format!("无法识别股票代码: {}", code))?;
-    let provider = state.quote_provider.clone();
-    let quote = tokio::task::spawn_blocking(move || provider.fetch_quote(&symbol))
-        .await
-        .map_err(|e| e.to_string())?
-        .map_err(|e| e.to_string())?;
-
+fn evaluate_alerts_for_quotes(
+    quotes: Vec<Quote>,
+    state: State<'_, AppState>,
+) -> Result<Vec<AlertEvent>, String> {
     let mut data = state.data.lock();
     let mut alert_engine = state.alert_engine.lock();
-    let events = alert_engine.evaluate(&mut data.rules, &quote);
-    for event in &events {
-        data.alert_history.insert(0, event.clone());
+    let mut all_events = Vec::new();
+    for quote in quotes {
+        let events = alert_engine.evaluate(&mut data.rules, &quote);
+        for event in &events {
+            data.alert_history.insert(0, event.clone());
+        }
+        all_events.extend(events);
     }
     data.alert_history.truncate(200);
     state.storage.save(&data).map_err(|e| e.to_string())?;
-    Ok(events)
+    Ok(all_events)
 }
 
 #[tauri::command]
@@ -364,7 +363,7 @@ pub fn run() {
             update_settings,
             get_current_stock_code,
             set_current_stock_code,
-            evaluate_alerts,
+            evaluate_alerts_for_quotes,
             get_alert_history,
             open_settings,
         ])

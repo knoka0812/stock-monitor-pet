@@ -148,19 +148,17 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
 
       if (!evaluateAlerts) return;
 
-      for (const q of qs) {
-        try {
-          const events = await api.evaluateAlerts(q.code);
-          if (events.length > 0) {
-            const notifyKey = `${events[0].rule_id}-${events[0].timestamp}`;
-            if (lastNotifiedKey.current !== notifyKey) {
-              lastNotifiedKey.current = notifyKey;
-              playAlertSound();
-              void notifyAlert(events[0]);
-            }
-            setAlerts((prev) => [...events, ...prev].slice(0, 20));
-          }
-        } catch {}
+      if (qs.length === 0) return;
+
+      const events = await api.evaluateAlertsForQuotes(qs);
+      if (events.length > 0) {
+        const notifyKey = `${events[0].rule_id}-${events[0].timestamp}`;
+        if (lastNotifiedKey.current !== notifyKey) {
+          lastNotifiedKey.current = notifyKey;
+          playAlertSound();
+          void notifyAlert(events[0]);
+        }
+        setAlerts((prev) => [...events, ...prev].slice(0, 20));
       }
     } catch (e) {
       console.error('refreshQuotes error', e);

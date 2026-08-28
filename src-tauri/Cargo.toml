@@ -1,6 +1,6 @@
 [package]
 name = "stock-pet"
-version = "0.4.2"
+version = "0.4.3"
 description = "PawTrader desktop stock watcher"
 authors = ["PawTrader"]
 edition = "2021"

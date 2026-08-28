@@ -50,7 +50,7 @@ export const api = {
     invoke('get_current_stock_code'),
   setCurrentStockCode: (code: string | null): Promise<void> =>
     invoke('set_current_stock_code', { code }),
-  evaluateAlerts: (code: string): Promise<AlertEvent[]> =>
-    invoke('evaluate_alerts', { code }),
+  evaluateAlertsForQuotes: (quotes: Quote[]): Promise<AlertEvent[]> =>
+    invoke('evaluate_alerts_for_quotes', { quotes }),
   getAlertHistory: (): Promise<AlertEvent[]> => invoke('get_alert_history'),
 };

@@ -9,6 +9,7 @@ export interface Stock {
 
 export interface Quote {
   code: string;
+  symbol: string;
   name: string;
   market: Market;
   price: number;
@@ -70,4 +71,5 @@ export interface PetSettings {
   custom_assets: CustomPetAssets;
   language: AppLanguage;
   theme: AppTheme;
+  settings_version: number;
 }

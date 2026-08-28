@@ -16,6 +16,18 @@ pub struct Storage {
     path: PathBuf,
 }
 
+const SETTINGS_VERSION: u32 = 2;
+
+fn migrate_settings(mut data: AppData) -> AppData {
+    if data.settings.settings_version < SETTINGS_VERSION {
+        if data.settings.refresh_interval_secs == 10 {
+            data.settings.refresh_interval_secs = 60;
+        }
+        data.settings.settings_version = SETTINGS_VERSION;
+    }
+    data
+}
+
 impl Storage {
     pub fn new(app_dir: PathBuf) -> Self {
         let path = app_dir.join("stock-pet-data.json");
@@ -24,10 +36,12 @@ impl Storage {
 
     pub fn load(&self) -> AppData {
         if !self.path.exists() {
-            return AppData::default();
+            return migrate_settings(AppData::default());
         }
         match fs::read_to_string(&self.path) {
-            Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
+            Ok(content) => serde_json::from_str(&content)
+                .map(migrate_settings)
+                .unwrap_or_else(|_| migrate_settings(AppData::default())),
             Err(_) => AppData::default(),
         }
     }
@@ -82,5 +96,45 @@ mod tests {
         let loaded = storage.load();
         assert!(loaded.stocks.is_empty());
         assert_eq!(loaded.settings.size, 96);
+        assert_eq!(loaded.settings.refresh_interval_secs, 60);
+        assert_eq!(loaded.settings.settings_version, 2);
+    }
+
+    fn write_storage_file(storage: &Storage, content: &str) {
+        if let Some(parent) = storage.path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        std::fs::write(&storage.path, content).unwrap();
+    }
+
+    #[test]
+    fn test_migrates_v1_default_interval() {
+        let (storage, _dir) = temp_storage();
+        let content = r#"{
+            "stocks": [],
+            "rules": [],
+            "alert_history": [],
+            "settings": { "refresh_interval_secs": 10 }
+        }"#;
+        write_storage_file(&storage, content);
+
+        let loaded = storage.load();
+        assert_eq!(loaded.settings.refresh_interval_secs, 60);
+        assert_eq!(loaded.settings.settings_version, 2);
+    }
+
+    #[test]
+    fn test_keeps_user_configured_interval() {
+        let (storage, _dir) = temp_storage();
+        let content = r#"{
+            "stocks": [],
+            "rules": [],
+            "alert_history": [],
+            "settings": { "refresh_interval_secs": 10, "settings_version": 2 }
+        }"#;
+        write_storage_file(&storage, content);
+
+        let loaded = storage.load();
+        assert_eq!(loaded.settings.refresh_interval_secs, 10);
     }
 }

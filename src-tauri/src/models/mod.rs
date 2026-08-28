@@ -31,6 +31,7 @@ pub struct Stock {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Quote {
     pub code: String,
+    #[serde(default)]
     pub symbol: String,
     pub name: String,
     pub market: Market,
@@ -240,6 +241,7 @@ pub struct PetSettings {
     pub custom_assets: CustomPetAssets,
     pub language: Language,
     pub theme: Theme,
+    pub settings_version: u32,
 }
 
 impl Default for PetSettings {
@@ -248,12 +250,13 @@ impl Default for PetSettings {
             size: 96,
             opacity: 0.95,
             always_on_top: true,
-            refresh_interval_secs: 10,
+            refresh_interval_secs: 60,
             current_stock_code: None,
             skin: PetSkin::Default,
             custom_assets: CustomPetAssets::default(),
             language: Language::Zh,
             theme: Theme::Dark,
+            settings_version: 1,
         }
     }
 }
