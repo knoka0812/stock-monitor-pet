@@ -90,7 +90,7 @@ npm run tauri build    # 打包当前平台安装包
 
 ### Windows 打开设置是黑屏/卡死？
 
-请先退出旧版本进程（任务管理器里结束 `Stock Monitor Pet`），再安装 `v0.2.4+`。新版本设置窗口改为启动时预建，并等待后端服务就绪后再请求数据，避免出现 `state not managed` 错误。
+请先退出旧版本进程（任务管理器里结束 `Stock Monitor Pet`），再安装 `v0.2.5+`。设置窗口改为独立页面、异步命令创建，避免 Windows 主线程卡死和 `state not managed` 时序问题。
 
 ### 自定义素材支持什么格式？
 

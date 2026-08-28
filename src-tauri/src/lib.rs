@@ -205,7 +205,7 @@ async fn evaluate_alerts(code: String, state: State<'_, AppState>) -> Result<Vec
 }
 
 #[tauri::command]
-fn open_settings(app: AppHandle) -> Result<(), String> {
+async fn open_settings(app: AppHandle) -> Result<(), String> {
     if let Some(existing) = app.get_webview_window("settings") {
         let _ = existing.show();
         let _ = existing.unminimize();
@@ -213,7 +213,25 @@ fn open_settings(app: AppHandle) -> Result<(), String> {
         return Ok(());
     }
 
-    Err("设置窗口尚未初始化".to_string())
+    use tauri::WebviewWindowBuilder;
+    WebviewWindowBuilder::new(
+        &app,
+        "settings",
+        tauri::WebviewUrl::App("settings.html".into()),
+    )
+    .title("股票监测宠物 - 设置")
+    .inner_size(820.0, 620.0)
+    .min_inner_size(620.0, 500.0)
+    .resizable(true)
+    .decorations(true)
+    .closable(true)
+    .background_color(tauri::utils::config::Color(7, 13, 20, 255))
+    .always_on_top(false)
+    .skip_taskbar(false)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 pub fn setup_state(app: &AppHandle) -> AppState {
@@ -251,11 +269,6 @@ pub fn run() {
             // 设置透明背景
             if let Some(win) = app.get_webview_window("main") {
                 let _ = win.set_background_color(Some(tauri::utils::config::Color(0, 0, 0, 0)));
-            }
-
-            if let Some(win) = app.get_webview_window("settings") {
-                let _ = win.set_background_color(Some(tauri::utils::config::Color(7, 13, 20, 255)));
-                let _ = win.set_closable(true);
             }
 
             Ok(())

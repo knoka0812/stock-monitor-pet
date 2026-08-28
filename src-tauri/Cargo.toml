@@ -1,6 +1,6 @@
 [package]
 name = "stock-pet"
-version = "0.2.4"
+version = "0.2.5"
 description = "股票监测桌面宠物"
 authors = ["stock-pet"]
 edition = "2021"

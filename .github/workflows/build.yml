@@ -55,6 +55,7 @@ jobs:
         run: npm ci
 
       - name: Build Tauri app
+        if: github.event_name == 'push'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -65,6 +66,10 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
+      - name: Build Tauri app (test)
+        if: github.event_name == 'workflow_dispatch'
+        run: npm run tauri build
 
       - name: Upload artifacts
         if: github.event_name == 'workflow_dispatch'
