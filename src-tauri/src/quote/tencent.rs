@@ -24,11 +24,6 @@ impl TencentProvider {
     pub fn new() -> Self {
         Self::default()
     }
-
-    fn build_url(symbols: &[String]) -> String {
-        let joined = symbols.join(",");
-        format!("https://qt.gtimg.cn/q={}", joined)
-    }
 }
 
 fn unescape_unicode(input: &str) -> String {
@@ -71,92 +66,27 @@ impl QuoteProvider for TencentProvider {
         if symbols.is_empty() {
             return Ok(vec![]);
         }
-        let url = Self::build_url(symbols);
-        let resp = self
-            .client
-            .get(&url)
-            .send()
-            .map_err(|e| QuoteError::Network(e.to_string()))?;
+        let joined = symbols.join(",");
+        let mut last_error = QuoteError::Network("行情请求失败".into());
 
-        let bytes = resp
-            .bytes()
-            .map_err(|e| QuoteError::Network(e.to_string()))?;
-
-        let body = decode_gbk(&bytes);
-        let mut quotes = Vec::new();
-
-        for line in body.lines() {
-            let line = line.trim();
-            if line.is_empty() {
-                continue;
+        for attempt in 0..3 {
+            for host in ["https://qt.gtimg.cn", "http://qt.gtimg.cn"] {
+                let url = format!("{}/q={}", host, joined);
+                let result = self.client.get(&url).send().and_then(|resp| resp.bytes());
+                match result {
+                    Ok(bytes) => {
+                        let body = decode_gbk(&bytes);
+                        return parse_quote_body(&body);
+                    }
+                    Err(error) => last_error = QuoteError::Network(error.to_string()),
+                }
             }
-            // v_sh600519="1~贵州茅台~600519~..."
-            if !line.starts_with("v_") {
-                continue;
+            if attempt < 2 {
+                std::thread::sleep(Duration::from_millis(250 * (attempt + 1)));
             }
-            let eq_pos = line.find('=').ok_or_else(|| QuoteError::Parse("缺少 = ".into()))?;
-            let symbol_part = &line[2..eq_pos];
-            let value_part = line[eq_pos + 1..].trim_matches('"');
-            if value_part.is_empty() {
-                continue;
-            }
-
-            let fields: Vec<&str> = value_part.split('~').collect();
-            if fields.len() < 32 {
-                continue;
-            }
-
-            let market = if symbol_part.starts_with("hk") {
-                Market::HK
-            } else if symbol_part.starts_with("us") {
-                Market::US
-            } else {
-                Market::AShare
-            };
-
-            let name = fields[1].to_string();
-            let code = fields[2].to_string();
-            let price: f64 = fields[3].parse().unwrap_or(0.0);
-            let prev_close: f64 = fields[4].parse().unwrap_or(0.0);
-            let open: f64 = fields[5].parse().unwrap_or(0.0);
-            // 港股字段位置略有不同，volume 在第 6 位，amount 第 37 位左右；A 股 volume 第 6 位，amount 第 37 位
-            let volume: u64 = fields[6].parse().unwrap_or(0);
-            let high: f64 = fields[33].parse().unwrap_or(price);
-            let low: f64 = fields[34].parse().unwrap_or(price);
-            let amount: f64 = fields
-                .get(37)
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(0.0);
-
-            let change = if prev_close > 0.0 {
-                price - prev_close
-            } else {
-                0.0
-            };
-            let change_percent = if prev_close > 0.0 {
-                (change / prev_close) * 100.0
-            } else {
-                0.0
-            };
-
-            quotes.push(Quote {
-                code,
-                name,
-                market,
-                price,
-                prev_close,
-                open,
-                high,
-                low,
-                volume,
-                amount,
-                change,
-                change_percent,
-                timestamp: Utc::now().timestamp(),
-            });
         }
 
-        Ok(quotes)
+        Err(last_error)
     }
 
     fn search(&self, keyword: &str) -> Result<Vec<Stock>> {
@@ -221,6 +151,78 @@ impl QuoteProvider for TencentProvider {
 
         Ok(results)
     }
+}
+
+fn parse_quote_body(body: &str) -> Result<Vec<Quote>> {
+    let mut quotes = Vec::new();
+
+    for line in body.lines() {
+        let line = line.trim();
+        if line.is_empty() || !line.starts_with("v_") {
+            continue;
+        }
+        let eq_pos = line.find('=').ok_or_else(|| QuoteError::Parse("缺少 = ".into()))?;
+        let symbol_part = &line[2..eq_pos];
+        let value_part = line[eq_pos + 1..].trim_matches('"');
+        if value_part.is_empty() {
+            continue;
+        }
+
+        let fields: Vec<&str> = value_part.split('~').collect();
+        if fields.len() < 32 {
+            continue;
+        }
+
+        let market = if symbol_part.starts_with("hk") {
+            Market::HK
+        } else if symbol_part.starts_with("us") {
+            Market::US
+        } else {
+            Market::AShare
+        };
+
+        let name = fields[1].to_string();
+        let code = fields[2].to_string();
+        let price: f64 = fields[3].parse().unwrap_or(0.0);
+        let prev_close: f64 = fields[4].parse().unwrap_or(0.0);
+        let open: f64 = fields[5].parse().unwrap_or(0.0);
+        let volume: u64 = fields[6].parse().unwrap_or(0);
+        let high: f64 = fields[33].parse().unwrap_or(price);
+        let low: f64 = fields[34].parse().unwrap_or(price);
+        let amount: f64 = fields
+            .get(37)
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0.0);
+
+        let change = if prev_close > 0.0 {
+            price - prev_close
+        } else {
+            0.0
+        };
+        let change_percent = if prev_close > 0.0 {
+            (change / prev_close) * 100.0
+        } else {
+            0.0
+        };
+
+        quotes.push(Quote {
+            code,
+            name,
+            market,
+            price,
+            prev_close,
+            open,
+            high,
+            low,
+            volume,
+            amount,
+            change,
+            change_percent,
+            timestamp: Utc::now().timestamp(),
+        });
+    }
+
+    Ok(quotes)
 }
 
 #[cfg(test)]

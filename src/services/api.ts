@@ -52,4 +52,5 @@ export const api = {
     invoke('set_current_stock_code', { code }),
   evaluateAlerts: (code: string): Promise<AlertEvent[]> =>
     invoke('evaluate_alerts', { code }),
+  getAlertHistory: (): Promise<AlertEvent[]> => invoke('get_alert_history'),
 };

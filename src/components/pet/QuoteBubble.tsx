@@ -1,16 +1,19 @@
 import type { AlertEvent, Quote } from '../../types';
+import type { Translator } from '../../i18n';
 
 interface QuoteBubbleProps {
   quote: Quote | null;
   loading: boolean;
   alert?: AlertEvent | null;
+  marketOpen?: boolean;
+  translate: Translator;
 }
 
-export default function QuoteBubble({ quote, loading, alert }: QuoteBubbleProps) {
+export default function QuoteBubble({ quote, loading, alert, marketOpen = true, translate }: QuoteBubbleProps) {
   if (loading) {
     return (
       <div className="bubble bubble-loading">
-        <div className="bubble-text">加载中...</div>
+        <div className="bubble-text">{translate('loading')}</div>
       </div>
     );
   }
@@ -18,7 +21,7 @@ export default function QuoteBubble({ quote, loading, alert }: QuoteBubbleProps)
   if (!quote) {
     return (
       <div className="bubble">
-        <div className="bubble-text">暂无股票<br />右键添加</div>
+        <div className="bubble-text">{translate('noStock')}<br />{translate('rightClickToAdd')}</div>
       </div>
     );
   }
@@ -29,13 +32,14 @@ export default function QuoteBubble({ quote, loading, alert }: QuoteBubbleProps)
   const arrow = isUp ? '▲' : isDown ? '▼' : '—';
   const sign = isUp ? '+' : '';
 
-  const timeStr = new Date(quote.timestamp * 1000).toLocaleTimeString('zh-CN', {
+  const timeStr = new Date(quote.timestamp * 1000).toLocaleTimeString(undefined, {
     hour: '2-digit',
     minute: '2-digit',
   });
 
   return (
     <div className={`bubble ${colorClass}`}>
+      {!marketOpen && <div className="bubble-closed">{translate('marketClosed')}</div>}
       {alert && (
         <div className="bubble-alert">
           <span className="bubble-alert-icon">!</span>

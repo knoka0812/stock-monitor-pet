@@ -1,4 +1,6 @@
 import type { Quote, Stock } from '../../types';
+import { marketLabel } from '../../i18n';
+import type { AppLanguage, Translator } from '../../i18n';
 
 interface StockMenuProps {
   stocks: Stock[];
@@ -7,6 +9,8 @@ interface StockMenuProps {
   onSelect: (code: string) => void;
   onOpenSettings: () => void;
   onQuit: () => void;
+  translate: Translator;
+  language: AppLanguage;
 }
 
 export default function StockMenu({
@@ -16,15 +20,17 @@ export default function StockMenu({
   onSelect,
   onOpenSettings,
   onQuit,
+  translate,
+  language,
 }: StockMenuProps) {
   const quoteMap = new Map(quotes.map((q) => [q.code, q]));
 
   return (
     <div className="stock-menu">
-      <div className="stock-menu-header">监控股票</div>
+      <div className="stock-menu-header">{translate('monitored')}</div>
       <div className="stock-menu-list">
         {stocks.length === 0 ? (
-          <div className="stock-menu-empty">暂无监控股票</div>
+          <div className="stock-menu-empty">{translate('noMonitored')}</div>
         ) : (
           stocks.map((stock) => {
             const q = quoteMap.get(stock.code);
@@ -41,7 +47,7 @@ export default function StockMenu({
                 <div className="stock-menu-item-left">
                   <span className="stock-menu-name">{stock.name}</span>
                   <span className="stock-menu-code">{stock.code}</span>
-                  <span className="stock-menu-market">{stock.market === 'ashare' ? 'A股' : stock.market === 'hk' ? '港股' : '美股'}</span>
+                  <span className="stock-menu-market">{marketLabel(language, stock.market)}</span>
                 </div>
                 {q && (
                   <div className="stock-menu-item-right">
@@ -58,10 +64,10 @@ export default function StockMenu({
       </div>
       <div className="stock-menu-divider" />
       <div className="stock-menu-action" onClick={onOpenSettings}>
-        ⚙️ 设置
+        {translate('settings')}
       </div>
       <div className="stock-menu-action danger" onClick={onQuit}>
-        ✕ 退出
+        {translate('quit')}
       </div>
     </div>
   );

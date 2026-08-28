@@ -235,6 +235,8 @@ pub struct PetSettings {
     pub skin: PetSkin,
     #[serde(default)]
     pub custom_assets: CustomPetAssets,
+    pub language: Language,
+    pub theme: Theme,
 }
 
 impl Default for PetSettings {
@@ -247,6 +249,8 @@ impl Default for PetSettings {
             current_stock_code: None,
             skin: PetSkin::Default,
             custom_assets: CustomPetAssets::default(),
+            language: Language::Zh,
+            theme: Theme::Dark,
         }
     }
 }
@@ -258,6 +262,20 @@ pub enum PetSkin {
     Default,
     Dog,
     Custom,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Language {
+    Zh,
+    En,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Theme {
+    Dark,
+    Light,
 }
 
 #[cfg(test)]

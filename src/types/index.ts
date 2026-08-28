@@ -50,6 +50,8 @@ export interface AlertEvent {
 }
 
 export type PetSkin = 'default' | 'dog' | 'custom';
+export type AppLanguage = 'zh' | 'en';
+export type AppTheme = 'dark' | 'light';
 
 export interface CustomPetAssets {
   up: string | null;
@@ -66,4 +68,6 @@ export interface PetSettings {
   current_stock_code: string | null;
   skin: PetSkin;
   custom_assets: CustomPetAssets;
+  language: AppLanguage;
+  theme: AppTheme;
 }

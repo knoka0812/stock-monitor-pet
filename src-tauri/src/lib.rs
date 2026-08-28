@@ -220,8 +220,17 @@ async fn evaluate_alerts(code: String, state: State<'_, AppState>) -> Result<Vec
     let mut data = state.data.lock();
     let mut alert_engine = state.alert_engine.lock();
     let events = alert_engine.evaluate(&mut data.rules, &quote);
+    for event in &events {
+        data.alert_history.insert(0, event.clone());
+    }
+    data.alert_history.truncate(200);
     state.storage.save(&data).map_err(|e| e.to_string())?;
     Ok(events)
+}
+
+#[tauri::command]
+fn get_alert_history(state: State<AppState>) -> Result<Vec<AlertEvent>, String> {
+    Ok(state.data.lock().alert_history.clone())
 }
 
 #[tauri::command]
@@ -319,6 +328,7 @@ pub fn run() {
             get_current_stock_code,
             set_current_stock_code,
             evaluate_alerts,
+            get_alert_history,
             open_settings,
         ])
         .run(tauri::generate_context!())

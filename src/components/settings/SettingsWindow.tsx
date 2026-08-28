@@ -8,7 +8,10 @@ import dogDownAsset from '../../assets/pet/dog-down.png';
 import dogNeutralAsset from '../../assets/pet/dog-neutral.png';
 import dogUpAsset from '../../assets/pet/dog-up.png';
 import { api, waitForAppReady } from '../../services/api';
+import { applyTheme, createTranslator, localeFor, marketLabel } from '../../i18n';
+import type { AppLanguage, AppTheme, Translator } from '../../i18n';
 import type {
+  AlertEvent,
   AlertDirection,
   AlertRule,
   AlertRuleType,
@@ -17,7 +20,7 @@ import type {
 } from '../../types';
 import './settings.css';
 
-type Tab = 'stocks' | 'alerts' | 'pet' | 'backup';
+type Tab = 'stocks' | 'alerts' | 'pet' | 'backup' | 'history';
 type AssetState = 'up' | 'down' | 'neutral' | 'alert';
 type Feedback = { tone: 'success' | 'error'; message: string } | null;
 
@@ -63,6 +66,7 @@ export default function SettingsWindow() {
   const [tab, setTab] = useState<Tab>('stocks');
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [rules, setRules] = useState<AlertRule[]>([]);
+  const [history, setHistory] = useState<AlertEvent[]>([]);
   const [settings, setSettings] = useState<PetSettings | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchResults, setSearchResults] = useState<Stock[]>([]);
@@ -74,6 +78,14 @@ export default function SettingsWindow() {
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [bootError, setBootError] = useState<string | null>(null);
+  const language = settings?.language ?? 'zh';
+  const theme = settings?.theme ?? 'dark';
+  const translate = createTranslator(language);
+
+  useEffect(() => {
+    applyTheme(theme);
+    document.documentElement.lang = localeFor(language);
+  }, [language, theme]);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,13 +104,15 @@ export default function SettingsWindow() {
 
   async function loadAll() {
     try {
-      const [stocksData, rulesData, settingsData] = await Promise.all([
+      const [stocksData, rulesData, settingsData, historyData] = await Promise.all([
         withTimeout(api.getStocks()),
         withTimeout(api.getRules()),
         withTimeout(api.getSettings()),
+        withTimeout(api.getAlertHistory()),
       ]);
       setStocks(stocksData);
       setRules(rulesData);
+      setHistory(historyData);
       setSettings(settingsData);
       setDirtyRules([]);
       setSettingsDirty(false);
@@ -131,13 +145,13 @@ export default function SettingsWindow() {
     const keyword = searchKeyword.trim();
     if (!keyword) return;
 
-    setSearching(true);
+      setSearching(true);
     try {
       const results = await api.searchStock(keyword);
       setSearchResults(results);
-      if (results.length === 0) showFeedback('error', '没有找到匹配的股票');
+      if (results.length === 0) showFeedback('error', translate('noMatches'));
     } catch (error) {
-      showFeedback('error', `搜索失败：${errorMessage(error)}`);
+      showFeedback('error', `${translate('searchFailed')}：${errorMessage(error)}`);
     } finally {
       setSearching(false);
     }
@@ -147,7 +161,7 @@ export default function SettingsWindow() {
     const succeeded = await runStockAction(
       stock.code,
       () => api.addStock(stock.tencent_symbol),
-      `已添加 ${stock.name}`,
+      translate('addedStock', { name: stock.name }),
     );
     if (!succeeded) return;
     setSearchKeyword('');
@@ -155,16 +169,16 @@ export default function SettingsWindow() {
   }
 
   function handleRemoveStock(code: string) {
-    void runStockAction(code, () => api.removeStock(code), `已移除 ${code}`);
+    void runStockAction(code, () => api.removeStock(code), translate('removedStock', { code }));
   }
 
   function handleSetCurrentStock(code: string) {
-    void runStockAction(code, () => api.setCurrentStockCode(code), `气泡已切换到 ${code}`);
+    void runStockAction(code, () => api.setCurrentStockCode(code), translate('switchedStock', { code }));
   }
 
   async function handleAddRule() {
     if (stocks.length === 0) {
-      showFeedback('error', '请先添加一只监控股票');
+      showFeedback('error', translate('needStock'));
       return;
     }
 
@@ -177,9 +191,9 @@ export default function SettingsWindow() {
         last_triggered: null,
       });
       await loadAll();
-      showFeedback('success', '已创建规则，修改条件后请点击保存');
+      showFeedback('success', translate('ruleCreated'));
     } catch (error) {
-      showFeedback('error', `创建规则失败：${errorMessage(error)}`);
+      showFeedback('error', `${translate('createFailed')}：${errorMessage(error)}`);
     }
   }
 
@@ -193,9 +207,9 @@ export default function SettingsWindow() {
     try {
       await api.updateRule(rule);
       await loadAll();
-      showFeedback('success', '提醒规则已保存');
+      showFeedback('success', translate('ruleSaved'));
     } catch (error) {
-      showFeedback('error', `保存规则失败：${errorMessage(error)}`);
+      showFeedback('error', `${translate('ruleSaveFailed')}：${errorMessage(error)}`);
     } finally {
       setSavingRules((current) => current.filter((id) => id !== rule.id));
     }
@@ -205,9 +219,9 @@ export default function SettingsWindow() {
     try {
       await api.deleteRule(id);
       await loadAll();
-      showFeedback('success', '提醒规则已删除');
+      showFeedback('success', translate('ruleDeleted'));
     } catch (error) {
-      showFeedback('error', `删除规则失败：${errorMessage(error)}`);
+      showFeedback('error', `${translate('ruleDeleteFailed')}：${errorMessage(error)}`);
     }
   }
 
@@ -236,9 +250,9 @@ export default function SettingsWindow() {
     try {
       await api.updateSettings(settings);
       setSettingsDirty(false);
-      showFeedback('success', '宠物设置已保存');
+      showFeedback('success', translate('settingsSaved'));
     } catch (error) {
-      showFeedback('error', `保存宠物设置失败：${errorMessage(error)}`);
+      showFeedback('error', `${translate('settingsSaveFailed')}：${errorMessage(error)}`);
     } finally {
       setSavingSettings(false);
     }
@@ -247,18 +261,34 @@ export default function SettingsWindow() {
   async function handleExportConfig() {
     try {
       const content = await api.exportConfig();
-      const blob = new Blob([content], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = 'stock-monitor-pet-config.json';
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
-      showFeedback('success', '配置已导出');
+      if (window.showSaveFilePicker) {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: 'stock-monitor-pet-config.json',
+          types: [
+            {
+              description: translate('jsonFiles'),
+              accept: { 'application/json': ['.json'] },
+            },
+          ],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(content);
+        await writable.close();
+        showFeedback('success', translate('exportSaved'));
+      } else {
+        const blob = new Blob([content], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = 'stock-monitor-pet-config.json';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+        showFeedback('success', translate('exportDownloaded'));
+      }
     } catch (error) {
-      showFeedback('error', `导出失败：${errorMessage(error)}`);
+      showFeedback('error', `${translate('exportFailed')}：${errorMessage(error)}`);
     }
   }
 
@@ -268,16 +298,16 @@ export default function SettingsWindow() {
       const content = await readTextFile(file);
       await api.importConfig(content);
       await loadAll();
-      showFeedback('success', '配置已导入并生效');
+      showFeedback('success', translate('importSuccess'));
     } catch (error) {
-      showFeedback('error', `导入失败：${errorMessage(error)}`);
+      showFeedback('error', `${translate('importFailed')}：${errorMessage(error)}`);
     }
   }
 
   if (!settings) {
     return (
       <div className="settings-loading">
-        {bootError ? `设置加载失败：${bootError}` : '正在连接本地数据...'}
+        {bootError ? `${translate('loadFailed')}：${bootError}` : translate('connecting')}
       </div>
     );
   }
@@ -289,20 +319,14 @@ export default function SettingsWindow() {
           <strong>Stock Pet</strong>
           <span>MONITOR STUDIO</span>
         </div>
-        {(['stocks', 'alerts', 'pet', 'backup'] as const).map((item) => (
+        {(['stocks', 'alerts', 'pet', 'backup', 'history'] as const).map((item) => (
           <button
             key={item}
             type="button"
             className={`settings-tab ${tab === item ? 'active' : ''}`}
             onClick={() => setTab(item)}
           >
-            {item === 'stocks'
-              ? '股票管理'
-              : item === 'alerts'
-                ? '提醒规则'
-                : item === 'pet'
-                  ? '宠物外观'
-                  : '备份配置'}
+            {translate(item === 'pet' ? 'appearance' : item)}
           </button>
         ))}
       </aside>
@@ -320,6 +344,8 @@ export default function SettingsWindow() {
 
         {tab === 'stocks' && (
           <StocksTab
+            translate={translate}
+            language={language}
             stocks={stocks}
             currentCode={settings.current_stock_code}
             searchKeyword={searchKeyword}
@@ -336,6 +362,7 @@ export default function SettingsWindow() {
 
         {tab === 'alerts' && (
           <AlertsTab
+            translate={translate}
             stocks={stocks}
             rules={rules}
             dirtyRules={dirtyRules}
@@ -349,6 +376,7 @@ export default function SettingsWindow() {
 
         {tab === 'pet' && (
           <PetTab
+            translate={translate}
             settings={settings}
             dirty={settingsDirty}
             saving={savingSettings}
@@ -358,13 +386,16 @@ export default function SettingsWindow() {
           />
         )}
 
-        {tab === 'backup' && <BackupTab onExport={handleExportConfig} onImport={handleImportConfig} />}
+        {tab === 'backup' && <BackupTab translate={translate} onExport={handleExportConfig} onImport={handleImportConfig} />}
+        {tab === 'history' && <HistoryTab translate={translate} history={history} language={language} />}
       </main>
     </div>
   );
 }
 
 function StocksTab({
+  translate,
+  language,
   stocks,
   currentCode,
   searchKeyword,
@@ -377,6 +408,8 @@ function StocksTab({
   onRemove,
   onSelect,
 }: {
+  translate: Translator;
+  language: AppLanguage;
   stocks: Stock[];
   currentCode: string | null;
   searchKeyword: string;
@@ -393,30 +426,30 @@ function StocksTab({
 
   return (
     <div className="tab-content">
-      <h2>股票管理</h2>
+      <h2>{translate('stocks')}</h2>
       <div className="search-bar">
         <input
           type="text"
-          placeholder="输入股票代码或名称（如 600519、00700）"
+          placeholder={translate('searchPlaceholder')}
           value={searchKeyword}
           onChange={(event) => setSearchKeyword(event.target.value)}
           onKeyDown={(event) => event.key === 'Enter' && onSearch()}
         />
         <button type="button" onClick={onSearch} disabled={searching}>
-          {searching ? '搜索中' : '搜索'}
+          {searching ? translate('searching') : translate('search')}
         </button>
       </div>
 
       {searchResults.length > 0 && (
         <section className="glass-list">
-          <div className="section-title">搜索结果</div>
+          <div className="section-title">{translate('searchResults')}</div>
           {searchResults.map((stock) => {
             const added = monitoredCodes.has(stock.code);
             return (
               <div key={stock.tencent_symbol} className="stock-item">
-                <StockLabel stock={stock} />
+                <StockLabel stock={stock} language={language} />
                 <button type="button" onClick={() => onAdd(stock)} disabled={added || busyStock === stock.code}>
-                  {added ? '已添加' : busyStock === stock.code ? '添加中' : '+ 添加'}
+                  {added ? translate('added') : busyStock === stock.code ? translate('adding') : translate('add')}
                 </button>
               </div>
             );
@@ -424,14 +457,14 @@ function StocksTab({
         </section>
       )}
 
-      <div className="section-title">已监控股票 ({stocks.length})</div>
+      <div className="section-title">{translate('monitoredStocks', { count: stocks.length })}</div>
       {stocks.length === 0 ? (
-        <div className="empty-hint">暂无监控股票，输入代码搜索并添加</div>
+        <div className="empty-hint">{translate('noMonitoredStocks')}</div>
       ) : (
         <section className="glass-list">
           {stocks.map((stock) => (
             <div key={stock.code} className="stock-item">
-              <StockLabel stock={stock} />
+              <StockLabel stock={stock} language={language} />
               <div className="stock-actions">
                 <button
                   type="button"
@@ -439,7 +472,7 @@ function StocksTab({
                   disabled={busyStock === stock.code || stock.code === currentCode}
                   onClick={() => onSelect(stock.code)}
                 >
-                  {stock.code === currentCode ? '当前展示' : '设为当前'}
+                  {stock.code === currentCode ? translate('current') : translate('setCurrent')}
                 </button>
                 <button
                   type="button"
@@ -447,7 +480,7 @@ function StocksTab({
                   disabled={busyStock === stock.code}
                   onClick={() => onRemove(stock.code)}
                 >
-                  {busyStock === stock.code ? '移除中' : '移除'}
+                  {busyStock === stock.code ? translate('removing') : translate('remove')}
                 </button>
               </div>
             </div>
@@ -458,19 +491,20 @@ function StocksTab({
   );
 }
 
-function StockLabel({ stock }: { stock: Stock }) {
+function StockLabel({ stock, language }: { stock: Stock; language: AppLanguage }) {
   return (
     <div>
       <span className="stock-name">{stock.name}</span>
       <span className="stock-code">{stock.code}</span>
       <span className="stock-market">
-        {stock.market === 'ashare' ? 'A股' : stock.market === 'hk' ? '港股' : '美股'}
+        {marketLabel(language, stock.market)}
       </span>
     </div>
   );
 }
 
 function AlertsTab({
+  translate,
   stocks,
   rules,
   dirtyRules,
@@ -480,6 +514,7 @@ function AlertsTab({
   onSave,
   onDelete,
 }: {
+  translate: Translator;
   stocks: Stock[];
   rules: AlertRule[];
   dirtyRules: string[];
@@ -492,20 +527,21 @@ function AlertsTab({
   return (
     <div className="tab-content">
       <div className="tab-header">
-        <h2>提醒规则</h2>
-        <button type="button" onClick={onAdd}>+ 新建规则</button>
+        <h2>{translate('alerts')}</h2>
+        <button type="button" onClick={onAdd}>{translate('newRule')}</button>
       </div>
 
       {dirtyRules.length > 0 && (
-        <div className="dirty-hint">{dirtyRules.length} 条规则有未保存修改</div>
+        <div className="dirty-hint">{translate('unsavedRules', { count: dirtyRules.length })}</div>
       )}
 
       {rules.length === 0 ? (
-        <div className="empty-hint">暂无提醒规则，点击“新建规则”添加</div>
+        <div className="empty-hint">{translate('noRules')}</div>
       ) : (
         <div className="rule-list">
           {rules.map((rule) => (
             <RuleEditor
+              translate={translate}
               key={rule.id}
               rule={rule}
               stocks={stocks}
@@ -523,6 +559,7 @@ function AlertsTab({
 }
 
 function RuleEditor({
+  translate,
   rule,
   stocks,
   dirty,
@@ -531,6 +568,7 @@ function RuleEditor({
   onSave,
   onDelete,
 }: {
+  translate: Translator;
   rule: AlertRule;
   stocks: Stock[];
   dirty: boolean;
@@ -572,18 +610,18 @@ function RuleEditor({
             </option>
           ))}
         </select>
-        <label className="switch" title="启用或停用">
+        <label className="switch" title={translate('toggleRule')}>
           <input type="checkbox" checked={rule.enabled} onChange={(event) => update({ enabled: event.target.checked })} />
           <span className="slider" />
         </label>
         <button type="button" className={`btn-danger btn-sm ${confirmDelete ? 'confirming' : ''}`} onClick={handleDelete}>
-          {confirmDelete ? '确认删除' : '删除'}
+          {confirmDelete ? translate('confirmDelete') : translate('delete')}
         </button>
       </div>
 
       <div className="rule-body">
         <div className="rule-row">
-          <label>类型</label>
+          <label>{translate('ruleType')}</label>
           <select
             value={rule.rule_type.kind}
             onChange={(event) => {
@@ -597,24 +635,24 @@ function RuleEditor({
               }
             }}
           >
-            <option value="change_percent">涨跌幅阈值</option>
-            <option value="price_cross">价格上穿/下穿</option>
-            <option value="fast_move">快速异动</option>
+            <option value="change_percent">{translate('changePercent')}</option>
+            <option value="price_cross">{translate('priceCross')}</option>
+            <option value="fast_move">{translate('fastMove')}</option>
           </select>
         </div>
 
         {rule.rule_type.kind === 'change_percent' && (
           <>
             <div className="rule-row">
-              <label>阈值 (%)</label>
+              <label>{translate('threshold')}</label>
               <input type="number" step="0.1" min="0" value={rule.rule_type.threshold} onChange={(event) => updateRuleType({ threshold: Number(event.target.value) || 0 })} />
             </div>
             <div className="rule-row">
-              <label>方向</label>
+              <label>{translate('direction')}</label>
               <select value={rule.rule_type.direction} onChange={(event) => updateRuleType({ direction: event.target.value as AlertDirection })}>
-                <option value="both">涨跌都提醒</option>
-                <option value="up">只涨</option>
-                <option value="down">只跌</option>
+                <option value="both">{translate('bothDirections')}</option>
+                <option value="up">{translate('upOnly')}</option>
+                <option value="down">{translate('downOnly')}</option>
               </select>
             </div>
           </>
@@ -623,15 +661,15 @@ function RuleEditor({
         {rule.rule_type.kind === 'price_cross' && (
           <>
             <div className="rule-row">
-              <label>目标价</label>
+              <label>{translate('targetPrice')}</label>
               <input type="number" step="0.01" min="0" value={rule.rule_type.target} onChange={(event) => updateRuleType({ target: Number(event.target.value) || 0 })} />
             </div>
             <div className="rule-row">
-              <label>方向</label>
+              <label>{translate('direction')}</label>
               <select value={rule.rule_type.direction} onChange={(event) => updateRuleType({ direction: event.target.value as AlertDirection })}>
-                <option value="up">上穿</option>
-                <option value="down">下穿</option>
-                <option value="both">双向</option>
+                <option value="up">{translate('crossUp')}</option>
+                <option value="down">{translate('crossDown')}</option>
+                <option value="both">{translate('bidirectional')}</option>
               </select>
             </div>
           </>
@@ -640,25 +678,25 @@ function RuleEditor({
         {rule.rule_type.kind === 'fast_move' && (
           <>
             <div className="rule-row">
-              <label>幅度 (%)</label>
+              <label>{translate('percent')}</label>
               <input type="number" step="0.1" min="0" value={rule.rule_type.percent} onChange={(event) => updateRuleType({ percent: Number(event.target.value) || 0 })} />
             </div>
             <div className="rule-row">
-              <label>窗口 (秒)</label>
+              <label>{translate('windowSeconds')}</label>
               <input type="number" step="10" min="10" value={rule.rule_type.window_seconds} onChange={(event) => updateRuleType({ window_seconds: Number(event.target.value) || 60 })} />
             </div>
           </>
         )}
 
         <div className="rule-row">
-          <label>冷却 (秒)</label>
+          <label>{translate('cooldownSeconds')}</label>
           <input type="number" step="30" min="0" value={rule.cooldown_seconds} onChange={(event) => update({ cooldown_seconds: Number(event.target.value) || 0 })} />
         </div>
 
         <div className="rule-footer">
-          <span>{dirty ? '有未保存修改' : '已保存'}</span>
+          <span>{dirty ? translate('unsaved') : translate('saved')}</span>
           <button type="button" disabled={!dirty || saving} onClick={() => onSave(rule)}>
-            {saving ? '保存中' : '保存修改'}
+            {saving ? translate('saving') : translate('saveChanges')}
           </button>
         </div>
       </div>
@@ -667,6 +705,7 @@ function RuleEditor({
 }
 
 function PetTab({
+  translate,
   settings,
   dirty,
   saving,
@@ -674,6 +713,7 @@ function PetTab({
   onAssetFile,
   onSave,
 }: {
+  translate: Translator;
   settings: PetSettings;
   dirty: boolean;
   saving: boolean;
@@ -686,14 +726,14 @@ function PetTab({
   return (
     <div className="tab-content">
       <div className="tab-header">
-        <h2>宠物外观</h2>
+        <h2>{translate('appearance')}</h2>
         <button type="button" disabled={!dirty || saving} onClick={onSave}>
-          {saving ? '保存中' : dirty ? '保存设置' : '已保存'}
+          {saving ? translate('saving') : dirty ? translate('saveSettings') : translate('saved')}
         </button>
       </div>
 
       <section className="form-section">
-        <div className="section-title">宠物形象</div>
+        <div className="section-title">{translate('petImage')}</div>
         <div className="skin-picker three-column">
           <button
             type="button"
@@ -701,13 +741,13 @@ function PetTab({
             onClick={() => onChange({ skin: 'default' })}
           >
             <div className="skin-state-grid">
-              <img src={neutralAsset} alt="横盘状态" />
-              <img src={upAsset} alt="上涨状态" />
-              <img src={downAsset} alt="下跌状态" />
-              <img src={alertAsset} alt="提醒状态" />
+              <img src={neutralAsset} alt={translate('stateNeutral')} />
+              <img src={upAsset} alt={translate('stateUp')} />
+              <img src={downAsset} alt={translate('stateDown')} />
+              <img src={alertAsset} alt={translate('stateAlert')} />
             </div>
-            <p>内置猫咪</p>
-            <small>自动切换四种行情状态</small>
+            <p>{translate('builtInCat')}</p>
+            <small>{translate('fourStates')}</small>
           </button>
 
           <button
@@ -716,13 +756,13 @@ function PetTab({
             onClick={() => onChange({ skin: 'dog' })}
           >
             <div className="skin-state-grid">
-              <img src={dogNeutralAsset} alt="横盘状态" />
-              <img src={dogUpAsset} alt="上涨状态" />
-              <img src={dogDownAsset} alt="下跌状态" />
-              <img src={dogAlertAsset} alt="提醒状态" />
+              <img src={dogNeutralAsset} alt={translate('stateNeutral')} />
+              <img src={dogUpAsset} alt={translate('stateUp')} />
+              <img src={dogDownAsset} alt={translate('stateDown')} />
+              <img src={dogAlertAsset} alt={translate('stateAlert')} />
             </div>
-            <p>小狗</p>
-            <small>自动切换四种行情状态</small>
+            <p>{translate('dog')}</p>
+            <small>{translate('fourStates')}</small>
           </button>
 
           <button
@@ -733,23 +773,23 @@ function PetTab({
             <div className="skin-state-grid">
               {(['up', 'down', 'neutral', 'alert'] as AssetState[]).map((state) => {
                 const asset = settings.custom_assets[state];
-                return asset ? <img key={state} src={asset} alt="" /> : <span key={state}>空</span>;
+                return asset ? <img key={state} src={asset} alt="" /> : <span key={state}>{translate('empty')}</span>;
               })}
             </div>
-            <p>自定义猫咪</p>
-            <small>为四种状态分别上传</small>
+            <p>{translate('customCat')}</p>
+            <small>{translate('uploadFourStates')}</small>
           </button>
         </div>
       </section>
 
       {isCustom && (
         <section className="form-section">
-          <div className="section-title">自定义素材</div>
+          <div className="section-title">{translate('customAssets')}</div>
           {(['neutral', 'up', 'down', 'alert'] as AssetState[]).map((state) => (
             <div key={state} className="asset-row">
-              <label>{state === 'up' ? '上涨' : state === 'down' ? '下跌' : state === 'neutral' ? '横盘' : '提醒'}</label>
+              <label>{translate(state === 'up' ? 'stateUp' : state === 'down' ? 'stateDown' : state === 'neutral' ? 'stateNeutral' : 'stateAlert')}</label>
               <div className="asset-preview">
-                {settings.custom_assets[state] ? <img src={settings.custom_assets[state] ?? ''} alt="" /> : <span>未设置</span>}
+                {settings.custom_assets[state] ? <img src={settings.custom_assets[state] ?? ''} alt="" /> : <span>{translate('unset')}</span>}
               </div>
               <input
                 type="file"
@@ -762,21 +802,21 @@ function PetTab({
                 disabled={!settings.custom_assets[state]}
                 onClick={() => onChange({ custom_assets: { ...settings.custom_assets, [state]: null } })}
               >
-                清除
+                {translate('clear')}
               </button>
             </div>
           ))}
-          <small className="asset-hint">支持 PNG / GIF / WebP，单张最大 3MB。</small>
+          <small className="asset-hint">{translate('assetHint')}</small>
         </section>
       )}
 
       <section className="form-section">
-        <div className="section-title">尺寸：{settings.size}px</div>
+        <div className="section-title">{translate('size')}：{settings.size}px</div>
         <input type="range" min="48" max="256" value={settings.size} onChange={(event) => onChange({ size: Number(event.target.value) })} />
       </section>
 
       <section className="form-section">
-        <div className="section-title">透明度（实时生效）</div>
+        <div className="section-title">{translate('opacity')}（{translate('realtime')}）</div>
         <div className="opacity-controls">
           <input
             type="number"
@@ -801,43 +841,67 @@ function PetTab({
       </section>
 
       <section className="form-section">
-        <div className="section-title">刷新间隔：{settings.refresh_interval_secs} 秒</div>
+        <div className="section-title">{translate('refreshInterval')}：{settings.refresh_interval_secs} {translate('seconds')}</div>
         <input type="range" min="5" max="300" step="5" value={settings.refresh_interval_secs} onChange={(event) => onChange({ refresh_interval_secs: Number(event.target.value) })} />
       </section>
 
       <section className="form-section">
         <label className="checkbox-label">
           <input type="checkbox" checked={settings.always_on_top} onChange={(event) => onChange({ always_on_top: event.target.checked })} />
-          窗口置顶
+          {translate('alwaysOnTop')}
         </label>
+      </section>
+
+      <section className="form-section">
+        <div className="section-title">{translate('language')}</div>
+        <select
+          className="language-select"
+          value={settings.language}
+          onChange={(event) => onChange({ language: event.target.value as AppLanguage })}
+        >
+          <option value="zh">{translate('chinese')}</option>
+          <option value="en">{translate('english')}</option>
+        </select>
+      </section>
+
+      <section className="form-section">
+        <div className="section-title">{translate('theme')}</div>
+        <select
+          className="language-select"
+          value={settings.theme}
+          onChange={(event) => onChange({ theme: event.target.value as AppTheme })}
+        >
+          <option value="dark">{translate('dark')}</option>
+          <option value="light">{translate('light')}</option>
+        </select>
       </section>
     </div>
   );
 }
 
 function BackupTab({
+  translate,
   onExport,
   onImport,
 }: {
+  translate: Translator;
   onExport: () => void;
   onImport: (file?: File) => void;
 }) {
   return (
     <div className="tab-content">
-      <h2>备份配置</h2>
-      <p className="backup-desc">
-        导出包含股票列表、提醒规则和宠物设置的 JSON 文件。重装或升级后导入即可恢复，方便跨版本使用。
-      </p>
+      <h2>{translate('backup')}</h2>
+      <p className="backup-desc">{translate('backupDesc')}</p>
 
       <section className="form-section">
-        <div className="section-title">导出</div>
+        <div className="section-title">{translate('export')}</div>
         <button type="button" className="btn-primary" onClick={onExport}>
-          下载配置文件
+          {translate('downloadConfig')}
         </button>
       </section>
 
       <section className="form-section">
-        <div className="section-title">导入</div>
+        <div className="section-title">{translate('import')}</div>
         <input
           type="file"
           accept="application/json,.json"
@@ -847,6 +911,35 @@ function BackupTab({
           }}
         />
       </section>
+    </div>
+  );
+}
+
+function HistoryTab({ translate, history, language }: { translate: Translator; history: AlertEvent[]; language: AppLanguage }) {
+  return (
+    <div className="tab-content">
+      <h2>{translate('history')}</h2>
+      {history.length === 0 ? (
+        <div className="empty-hint">{translate('noHistory')}</div>
+      ) : (
+        <section className="glass-list">
+          {history.map((event) => (
+            <div key={`${event.timestamp}-${event.rule_id}`} className="history-item">
+              <div className="history-item-head">
+                <span className="history-item-name">{event.stock_name}</span>
+                <span className="history-item-time">
+                  {new Date(event.timestamp * 1000).toLocaleString(localeFor(language))}
+                </span>
+              </div>
+              <div className="history-item-message">{event.message}</div>
+              <div className="history-item-meta">
+                {event.price.toFixed(2)} · {event.change_percent > 0 ? '+' : ''}
+                {event.change_percent.toFixed(2)}%
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
     </div>
   );
 }

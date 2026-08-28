@@ -1,4 +1,4 @@
-use crate::models::{AlertRule, PetSettings, Stock};
+use crate::models::{AlertEvent, AlertRule, PetSettings, Stock};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -8,6 +8,7 @@ use std::path::PathBuf;
 pub struct AppData {
     pub stocks: Vec<Stock>,
     pub rules: Vec<AlertRule>,
+    pub alert_history: Vec<AlertEvent>,
     pub settings: PetSettings,
 }
 
@@ -63,12 +64,16 @@ mod tests {
             tencent_symbol: "sh600519".into(),
         });
         data.settings.refresh_interval_secs = 15;
+        data.settings.language = crate::models::Language::En;
+        data.settings.theme = crate::models::Theme::Light;
 
         storage.save(&data).unwrap();
         let loaded = storage.load();
         assert_eq!(loaded.stocks.len(), 1);
         assert_eq!(loaded.stocks[0].code, "600519");
         assert_eq!(loaded.settings.refresh_interval_secs, 15);
+        assert_eq!(loaded.settings.language, crate::models::Language::En);
+        assert_eq!(loaded.settings.theme, crate::models::Theme::Light);
     }
 
     #[test]
