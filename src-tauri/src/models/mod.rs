@@ -255,6 +255,7 @@ impl Default for PetSettings {
 pub enum PetSkin {
     #[serde(alias = "orange_cat", alias = "gray_cat", alias = "calico_cat")]
     Default,
+    Dog,
     Custom,
 }
 
@@ -268,6 +269,12 @@ mod pet_skin_tests {
             let skin: PetSkin = serde_json::from_value(serde_json::json!(value)).unwrap();
             assert_eq!(skin, PetSkin::Default);
         }
+    }
+
+    #[test]
+    fn pet_skin_accepts_dog() {
+        let skin: PetSkin = serde_json::from_value(serde_json::json!("dog")).unwrap();
+        assert_eq!(skin, PetSkin::Dog);
     }
 }
 

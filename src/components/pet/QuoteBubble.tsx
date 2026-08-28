@@ -1,11 +1,12 @@
-import type { Quote } from '../../types';
+import type { AlertEvent, Quote } from '../../types';
 
 interface QuoteBubbleProps {
   quote: Quote | null;
   loading: boolean;
+  alert?: AlertEvent | null;
 }
 
-export default function QuoteBubble({ quote, loading }: QuoteBubbleProps) {
+export default function QuoteBubble({ quote, loading, alert }: QuoteBubbleProps) {
   if (loading) {
     return (
       <div className="bubble bubble-loading">
@@ -35,6 +36,12 @@ export default function QuoteBubble({ quote, loading }: QuoteBubbleProps) {
 
   return (
     <div className={`bubble ${colorClass}`}>
+      {alert && (
+        <div className="bubble-alert">
+          <span className="bubble-alert-icon">!</span>
+          <span>{alert.message}</span>
+        </div>
+      )}
       <div className="bubble-header">
         <span className="bubble-name">{quote.name}</span>
         <span className="bubble-code">{quote.code}</span>

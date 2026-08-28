@@ -3,6 +3,10 @@ import alertAsset from '../../assets/pet/alert.png';
 import downAsset from '../../assets/pet/down.png';
 import neutralAsset from '../../assets/pet/neutral.png';
 import upAsset from '../../assets/pet/up.png';
+import dogAlertAsset from '../../assets/pet/dog-alert.png';
+import dogDownAsset from '../../assets/pet/dog-down.png';
+import dogNeutralAsset from '../../assets/pet/dog-neutral.png';
+import dogUpAsset from '../../assets/pet/dog-up.png';
 import { api, waitForAppReady } from '../../services/api';
 import type {
   AlertDirection,
@@ -642,11 +646,11 @@ function PetTab({
       </div>
 
       <section className="form-section">
-        <div className="section-title">猫咪形象</div>
-        <div className="skin-picker two-column">
+        <div className="section-title">宠物形象</div>
+        <div className="skin-picker three-column">
           <button
             type="button"
-            className={`skin-option ${!isCustom ? 'active' : ''}`}
+            className={`skin-option ${settings.skin === 'default' ? 'active' : ''}`}
             onClick={() => onChange({ skin: 'default' })}
           >
             <div className="skin-state-grid">
@@ -656,6 +660,21 @@ function PetTab({
               <img src={alertAsset} alt="提醒状态" />
             </div>
             <p>内置猫咪</p>
+            <small>自动切换四种行情状态</small>
+          </button>
+
+          <button
+            type="button"
+            className={`skin-option ${settings.skin === 'dog' ? 'active' : ''}`}
+            onClick={() => onChange({ skin: 'dog' })}
+          >
+            <div className="skin-state-grid">
+              <img src={dogNeutralAsset} alt="横盘状态" />
+              <img src={dogUpAsset} alt="上涨状态" />
+              <img src={dogDownAsset} alt="下跌状态" />
+              <img src={dogAlertAsset} alt="提醒状态" />
+            </div>
+            <p>小狗</p>
             <small>自动切换四种行情状态</small>
           </button>
 
@@ -710,8 +729,28 @@ function PetTab({
       </section>
 
       <section className="form-section">
-        <div className="section-title">透明度：{Math.round(settings.opacity * 100)}%</div>
-        <input type="range" min="30" max="100" value={settings.opacity * 100} onChange={(event) => onChange({ opacity: Number(event.target.value) / 100 })} />
+        <div className="section-title">透明度（实时生效）</div>
+        <div className="opacity-controls">
+          <input
+            type="number"
+            min="10"
+            max="100"
+            value={Math.round(settings.opacity * 100)}
+            onChange={(event) =>
+              onChange({
+                opacity: Math.min(100, Math.max(10, Number(event.target.value) || 100)) / 100,
+              })
+            }
+          />
+          <span>%</span>
+          <input
+            type="range"
+            min="10"
+            max="100"
+            value={settings.opacity * 100}
+            onChange={(event) => onChange({ opacity: Number(event.target.value) / 100 })}
+          />
+        </div>
       </section>
 
       <section className="form-section">

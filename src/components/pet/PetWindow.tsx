@@ -123,6 +123,8 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
 
   const currentCode = settings?.current_stock_code ?? null;
   const currentQuote = quotes.find((q) => q.code === currentCode) ?? null;
+  const activeAlert =
+    alerts.find((alert) => Date.now() / 1000 - alert.timestamp < 30) ?? null;
 
   const mood = (() => {
     if (!currentQuote) return 'neutral' as const;
@@ -169,7 +171,7 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
   }
 
   const petSize = settings.size;
-  const bubbleWidth = 200;
+  const bubbleWidth = 176;
   const menuWidth = 280;
 
   return (
@@ -203,7 +205,7 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
 
         {!menuOpen && (
           <div className="bubble-container" style={{ width: bubbleWidth }}>
-            <QuoteBubble quote={currentQuote} loading={loading && stocks.length > 0} />
+            <QuoteBubble quote={currentQuote} loading={loading && stocks.length > 0} alert={activeAlert} />
           </div>
         )}
 

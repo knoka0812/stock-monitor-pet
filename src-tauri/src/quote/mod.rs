@@ -47,10 +47,10 @@ pub fn detect_market_and_symbol(code: &str) -> Option<(Market, String)> {
         // A 股：6 位
         if digits.len() == 6 {
             let prefix = &digits[..1];
-            // 6 开头 = 上交所；0/3 开头 = 深交所
+            // 6/5/9 开头 = 上交所（含 51/56/58 系列 ETF）；0/1/2/3 开头 = 深交所（含 15/16/18 系列 ETF）
             match prefix {
-                "6" | "9" => return Some((Market::AShare, format!("sh{}", digits))),
-                "0" | "3" | "2" => return Some((Market::AShare, format!("sz{}", digits))),
+                "5" | "6" | "9" => return Some((Market::AShare, format!("sh{}", digits))),
+                "0" | "1" | "2" | "3" => return Some((Market::AShare, format!("sz{}", digits))),
                 _ => {}
             }
         }
@@ -97,6 +97,20 @@ mod tests {
         let (market, symbol) = detect_market_and_symbol("300750").unwrap();
         assert_eq!(market, Market::AShare);
         assert_eq!(symbol, "sz300750");
+    }
+
+    #[test]
+    fn test_detect_shenzhen_etf() {
+        let (market, symbol) = detect_market_and_symbol("159142").unwrap();
+        assert_eq!(market, Market::AShare);
+        assert_eq!(symbol, "sz159142");
+    }
+
+    #[test]
+    fn test_detect_shanghai_etf() {
+        let (market, symbol) = detect_market_and_symbol("510300").unwrap();
+        assert_eq!(market, Market::AShare);
+        assert_eq!(symbol, "sh510300");
     }
 
     #[test]

@@ -514,6 +514,33 @@ input:checked + .slider::before {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.skin-picker.three-column {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.opacity-controls {
+  display: grid;
+  grid-template-columns: 72px 18px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.opacity-controls input[type="number"] {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.07);
+  font: inherit;
+  font-size: 13px;
+}
+
+.opacity-controls span {
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
 .skin-option {
   display: block;
   width: 100%;
@@ -685,6 +712,7 @@ input:checked + .slider::before {
   }
 
   .skin-picker.two-column,
+  .skin-picker.three-column,
   .skin-picker {
     grid-template-columns: 1fr;
   }

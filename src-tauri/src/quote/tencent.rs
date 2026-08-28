@@ -31,6 +31,33 @@ impl TencentProvider {
     }
 }
 
+fn unescape_unicode(input: &str) -> String {
+    let bytes = input.as_bytes();
+    let mut output = String::with_capacity(input.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'\\'
+            && index + 5 < bytes.len()
+            && bytes[index + 1] == b'u'
+        {
+            if let Ok(value) = u32::from_str_radix(&input[index + 2..index + 6], 16) {
+                if let Some(char) = char::from_u32(value) {
+                    output.push(char);
+                    index += 6;
+                    continue;
+                }
+            }
+        }
+        let char = input[index..]
+            .chars()
+            .next()
+            .unwrap_or_default();
+        output.push(char);
+        index += char.len_utf8();
+    }
+    output
+}
+
 impl QuoteProvider for TencentProvider {
     fn fetch_quote(&self, symbol: &str) -> Result<Quote> {
         let quotes = self.fetch_quotes(&[symbol.to_string()])?;
@@ -151,19 +178,18 @@ impl QuoteProvider for TencentProvider {
         let body = decode_gbk(&bytes);
         let mut results = Vec::new();
 
-        // 格式：v_hint="code~name~type~...^..."
-        // 简化处理：从引号里拿内容，按 ^ 分隔，再按 ~ 拆分
+        // 格式：v_hint="market~code~name~pinyin~type^..."
         if let Some(start) = body.find('"') {
             if let Some(end) = body.rfind('"') {
                 let content = &body[start + 1..end];
                 for item in content.split('^') {
                     let parts: Vec<&str> = item.split('~').collect();
                     if parts.len() >= 3 {
-                        let code = parts[0].to_string();
-                        let name = parts[1].to_string();
-                        let raw_type = parts[2];
-                        let (market, tencent_symbol) = match raw_type {
-                            "sh" | "sz" => (Market::AShare, format!("{}{}", raw_type, code)),
+                        let raw_market = parts[0];
+                        let code = parts[1].to_string();
+                        let name = unescape_unicode(parts[2]);
+                        let (market, tencent_symbol) = match raw_market {
+                            "sh" | "sz" => (Market::AShare, format!("{}{}", raw_market, code)),
                             "hk" => (Market::HK, format!("hk{}", code)),
                             "us" => (Market::US, format!("us{}", code.to_lowercase())),
                             _ => continue,
@@ -208,6 +234,12 @@ mod tests {
         let line = r#"v_sh600519="1~贵州茅台~600519~1680.00~1700.00~1690.00~123456~...""#;
         assert!(line.starts_with("v_sh"));
         assert!(line.contains('='));
+    }
+
+    #[test]
+    fn test_unescape_unicode() {
+        assert_eq!(unescape_unicode(r"\u8d35\u5dde\u8305\u53f0"), "贵州茅台");
+        assert_eq!(unescape_unicode("普通文本"), "普通文本");
     }
 
     #[test]
