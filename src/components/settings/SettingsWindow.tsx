@@ -17,6 +17,15 @@ type Tab = 'stocks' | 'alerts' | 'pet';
 type AssetState = 'up' | 'down' | 'neutral' | 'alert';
 type Feedback = { tone: 'success' | 'error'; message: string } | null;
 
+function withTimeout<T>(promise: Promise<T>, milliseconds = 5000) {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      window.setTimeout(() => reject(new Error(`后端响应超过 ${Math.round(milliseconds / 1000)} 秒`)), milliseconds);
+    }),
+  ]);
+}
+
 const ASSET_SIZE_LIMIT = 3 * 1024 * 1024;
 
 function readAssetFile(file: File) {
@@ -51,22 +60,28 @@ export default function SettingsWindow() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
+  const [bootError, setBootError] = useState<string | null>(null);
 
   useEffect(() => {
     loadAll();
   }, []);
 
   async function loadAll() {
-    const [stocksData, rulesData, settingsData] = await Promise.all([
-      api.getStocks(),
-      api.getRules(),
-      api.getSettings(),
-    ]);
-    setStocks(stocksData);
-    setRules(rulesData);
-    setSettings(settingsData);
-    setDirtyRules([]);
-    setSettingsDirty(false);
+    try {
+      const [stocksData, rulesData, settingsData] = await Promise.all([
+        withTimeout(api.getStocks()),
+        withTimeout(api.getRules()),
+        withTimeout(api.getSettings()),
+      ]);
+      setStocks(stocksData);
+      setRules(rulesData);
+      setSettings(settingsData);
+      setDirtyRules([]);
+      setSettingsDirty(false);
+      setBootError(null);
+    } catch (error) {
+      setBootError(errorMessage(error));
+    }
   }
 
   function showFeedback(tone: 'success' | 'error', message: string) {
@@ -205,7 +220,13 @@ export default function SettingsWindow() {
     }
   }
 
-  if (!settings) return <div className="settings-loading">加载中...</div>;
+  if (!settings) {
+    return (
+      <div className="settings-loading">
+        {bootError ? `设置加载失败：${bootError}` : '正在连接本地数据...'}
+      </div>
+    );
+  }
 
   return (
     <div className="settings-window">

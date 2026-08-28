@@ -13,6 +13,17 @@
         font-family: system-ui, sans-serif;
       }
     </style>
+    <script>
+      window.showBootError = function (message) {
+        var root = document.getElementById("root");
+        if (!root) return;
+        root.innerHTML = '<pre style="padding:24px;white-space:pre-wrap;color:#ffb4ae;">' + String(message).replace(/[<>&]/g, function (char) {
+          return { '<': '&lt;', '>': '&gt;', '&': '&amp;' }[char];
+        }) + '</pre>';
+      };
+      window.addEventListener("error", function (event) { window.showBootError(event.message || "脚本加载失败"); });
+      window.addEventListener("unhandledrejection", function (event) { window.showBootError(event.reason || "异步初始化失败"); });
+    </script>
   </head>
   <body>
     <div id="root">

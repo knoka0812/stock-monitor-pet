@@ -8,7 +8,7 @@ use models::*;
 use parking_lot::Mutex;
 use quote::{QuoteProvider, TencentProvider, detect_market_and_symbol};
 use storage::{AppData, Storage};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 
 pub struct AppState {
     pub storage: Storage,
@@ -206,8 +206,6 @@ async fn evaluate_alerts(code: String, state: State<'_, AppState>) -> Result<Vec
 
 #[tauri::command]
 fn open_settings(app: AppHandle) -> Result<(), String> {
-    use tauri::WebviewWindowBuilder;
-
     if let Some(existing) = app.get_webview_window("settings") {
         let _ = existing.show();
         let _ = existing.unminimize();
@@ -215,24 +213,7 @@ fn open_settings(app: AppHandle) -> Result<(), String> {
         return Ok(());
     }
 
-    WebviewWindowBuilder::new(
-        &app,
-        "settings",
-        tauri::WebviewUrl::App("settings.html".into()),
-    )
-    .title("股票监测宠物 - 设置")
-    .inner_size(720.0, 560.0)
-    .min_inner_size(600.0, 480.0)
-    .resizable(true)
-    .decorations(true)
-    .closable(true)
-    .background_color(tauri::utils::config::Color(7, 13, 20, 255))
-    .always_on_top(false)
-    .skip_taskbar(false)
-    .build()
-    .map_err(|e| e.to_string())?;
-
-    Ok(())
+    Err("设置窗口尚未初始化".to_string())
 }
 
 pub fn setup_state(app: &AppHandle) -> AppState {
@@ -272,7 +253,20 @@ pub fn run() {
                 let _ = win.set_background_color(Some(tauri::utils::config::Color(0, 0, 0, 0)));
             }
 
+            if let Some(win) = app.get_webview_window("settings") {
+                let _ = win.set_background_color(Some(tauri::utils::config::Color(7, 13, 20, 255)));
+                let _ = win.set_closable(true);
+            }
+
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == "settings" {
+                    let _ = window.hide();
+                    api.prevent_close();
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             get_stocks,
