@@ -24,14 +24,16 @@ fn get_stocks(state: State<AppState>) -> Result<Vec<Stock>, String> {
 }
 
 #[tauri::command]
-fn add_stock(code: String, state: State<AppState>) -> Result<Stock, String> {
+async fn add_stock(code: String, state: State<'_, AppState>) -> Result<Stock, String> {
     let (market, symbol) = detect_market_and_symbol(&code)
         .ok_or_else(|| format!("无法识别股票代码: {}", code))?;
 
     // 拉一次行情验证并获取名称
-    let quote = state
-        .quote_provider
-        .fetch_quote(&symbol)
+    let provider = state.quote_provider.clone();
+    let symbol_for_task = symbol.clone();
+    let quote = tokio::task::spawn_blocking(move || provider.fetch_quote(&symbol_for_task))
+        .await
+        .map_err(|e| e.to_string())?
         .map_err(|e| e.to_string())?;
 
     let stock = Stock {
@@ -72,15 +74,16 @@ fn remove_stock(code: String, state: State<AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn search_stock(keyword: String, state: State<AppState>) -> Result<Vec<Stock>, String> {
-    state
-        .quote_provider
-        .search(&keyword)
+async fn search_stock(keyword: String, state: State<'_, AppState>) -> Result<Vec<Stock>, String> {
+    let provider = state.quote_provider.clone();
+    tokio::task::spawn_blocking(move || provider.search(&keyword))
+        .await
+        .map_err(|e| e.to_string())?
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn get_quotes(state: State<AppState>) -> Result<Vec<Quote>, String> {
+async fn get_quotes(state: State<'_, AppState>) -> Result<Vec<Quote>, String> {
     let symbols: Vec<String> = state
         .data
         .lock()
@@ -91,19 +94,21 @@ fn get_quotes(state: State<AppState>) -> Result<Vec<Quote>, String> {
     if symbols.is_empty() {
         return Ok(vec![]);
     }
-    state
-        .quote_provider
-        .fetch_quotes(&symbols)
+    let provider = state.quote_provider.clone();
+    tokio::task::spawn_blocking(move || provider.fetch_quotes(&symbols))
+        .await
+        .map_err(|e| e.to_string())?
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn get_quote(code: String, state: State<AppState>) -> Result<Quote, String> {
+async fn get_quote(code: String, state: State<'_, AppState>) -> Result<Quote, String> {
     let (_, symbol) = detect_market_and_symbol(&code)
         .ok_or_else(|| format!("无法识别股票代码: {}", code))?;
-    state
-        .quote_provider
-        .fetch_quote(&symbol)
+    let provider = state.quote_provider.clone();
+    tokio::task::spawn_blocking(move || provider.fetch_quote(&symbol))
+        .await
+        .map_err(|e| e.to_string())?
         .map_err(|e| e.to_string())
 }
 
@@ -183,12 +188,13 @@ fn set_current_stock_code(code: Option<String>, state: State<AppState>) -> Resul
 }
 
 #[tauri::command]
-fn evaluate_alerts(code: String, state: State<AppState>) -> Result<Vec<AlertEvent>, String> {
+async fn evaluate_alerts(code: String, state: State<'_, AppState>) -> Result<Vec<AlertEvent>, String> {
     let (_, symbol) = detect_market_and_symbol(&code)
         .ok_or_else(|| format!("无法识别股票代码: {}", code))?;
-    let quote = state
-        .quote_provider
-        .fetch_quote(&symbol)
+    let provider = state.quote_provider.clone();
+    let quote = tokio::task::spawn_blocking(move || provider.fetch_quote(&symbol))
+        .await
+        .map_err(|e| e.to_string())?
         .map_err(|e| e.to_string())?;
 
     let mut data = state.data.lock();
@@ -212,13 +218,15 @@ fn open_settings(app: AppHandle) -> Result<(), String> {
     WebviewWindowBuilder::new(
         &app,
         "settings",
-        tauri::WebviewUrl::App("index.html".into()),
+        tauri::WebviewUrl::App("settings.html".into()),
     )
     .title("股票监测宠物 - 设置")
     .inner_size(720.0, 560.0)
     .min_inner_size(600.0, 480.0)
     .resizable(true)
     .decorations(true)
+    .closable(true)
+    .background_color(tauri::utils::config::Color(7, 13, 20, 255))
     .always_on_top(false)
     .skip_taskbar(false)
     .build()

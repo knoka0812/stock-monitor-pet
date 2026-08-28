@@ -15,6 +15,7 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [settings, setSettings] = useState<PetSettings | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [walking, setWalking] = useState(false);
   const [loading, setLoading] = useState(true);
   const [alerts, setAlerts] = useState<AlertEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +53,33 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
     const interval = setInterval(refreshQuotes, settings.refresh_interval_secs * 1000);
     return () => clearInterval(interval);
   }, [settings?.refresh_interval_secs, stocks.length]);
+
+  useEffect(() => {
+    let disposed = false;
+    let walkTimer: number | undefined;
+    let restTimer: number | undefined;
+
+    function scheduleWalk() {
+      if (disposed) return;
+      restTimer = window.setTimeout(() => {
+        if (disposed) return;
+        setWalking(true);
+        walkTimer = window.setTimeout(() => {
+          if (disposed) return;
+          setWalking(false);
+          scheduleWalk();
+        }, 3200 + Math.random() * 3200);
+      }, 12000 + Math.random() * 18000);
+    }
+
+    scheduleWalk();
+
+    return () => {
+      disposed = true;
+      if (walkTimer) window.clearTimeout(walkTimer);
+      if (restTimer) window.clearTimeout(restTimer);
+    };
+  }, []);
 
   async function loadData() {
     try {
@@ -178,7 +206,7 @@ export default function PetWindow({ onOpenSettings }: PetWindowProps) {
           </div>
         )}
 
-        <div className="pet-container" style={{ width: petSize, height: petSize }}>
+        <div className={`pet-container ${walking ? 'walking' : ''}`} style={{ width: petSize, height: petSize }}>
           <CatPet
             size={petSize}
             mood={mood}

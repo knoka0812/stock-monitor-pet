@@ -4,6 +4,7 @@ use chrono::Utc;
 use reqwest::blocking::Client;
 use std::time::Duration;
 
+#[derive(Clone)]
 pub struct TencentProvider {
     client: Client,
 }
