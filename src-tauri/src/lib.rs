@@ -6,13 +6,13 @@ mod storage;
 use alert::AlertEngine;
 use models::*;
 use parking_lot::Mutex;
-use quote::{QuoteProvider, TencentProvider, detect_market_and_symbol};
+use quote::{FallbackProvider, QuoteProvider, detect_market_and_symbol};
 use storage::{AppData, Storage};
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 
 pub struct AppState {
     pub storage: Storage,
-    pub quote_provider: TencentProvider,
+    pub quote_provider: FallbackProvider,
     pub alert_engine: Mutex<AlertEngine>,
     pub data: Mutex<AppData>,
     pub app: Option<AppHandle>,
@@ -272,7 +272,7 @@ pub fn setup_state(app: &AppHandle) -> AppState {
     let data = storage.load();
     AppState {
         storage,
-        quote_provider: TencentProvider::new(),
+        quote_provider: FallbackProvider::new(),
         alert_engine: Mutex::new(AlertEngine::new()),
         data: Mutex::new(data),
         app: Some(app.clone()),

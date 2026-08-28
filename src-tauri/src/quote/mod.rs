@@ -3,8 +3,12 @@ use encoding_rs::GBK;
 use thiserror::Error;
 
 pub mod tencent;
+pub mod sina;
+pub mod fallback;
 
 pub use tencent::TencentProvider;
+pub use sina::SinaProvider;
+pub use fallback::FallbackProvider;
 
 #[derive(Debug, Error)]
 pub enum QuoteError {
