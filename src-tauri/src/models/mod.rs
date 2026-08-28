@@ -225,6 +225,7 @@ pub struct AlertEvent {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct PetSettings {
     pub size: u32,
     pub opacity: f64,

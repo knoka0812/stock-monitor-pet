@@ -4,6 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(default)]
 pub struct AppData {
     pub stocks: Vec<Stock>,
     pub rules: Vec<AlertRule>,

@@ -17,7 +17,7 @@ import type {
 } from '../../types';
 import './settings.css';
 
-type Tab = 'stocks' | 'alerts' | 'pet';
+type Tab = 'stocks' | 'alerts' | 'pet' | 'backup';
 type AssetState = 'up' | 'down' | 'neutral' | 'alert';
 type Feedback = { tone: 'success' | 'error'; message: string } | null;
 
@@ -43,6 +43,15 @@ function readAssetFile(file: File) {
     reader.onload = () => resolve(String(reader.result));
     reader.onerror = () => reject(new Error('读取图片失败'));
     reader.readAsDataURL(file);
+  });
+}
+
+function readTextFile(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('读取文件失败'));
+    reader.readAsText(file, 'utf-8');
   });
 }
 
@@ -235,6 +244,36 @@ export default function SettingsWindow() {
     }
   }
 
+  async function handleExportConfig() {
+    try {
+      const content = await api.exportConfig();
+      const blob = new Blob([content], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'stock-monitor-pet-config.json';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      showFeedback('success', '配置已导出');
+    } catch (error) {
+      showFeedback('error', `导出失败：${errorMessage(error)}`);
+    }
+  }
+
+  async function handleImportConfig(file?: File) {
+    if (!file) return;
+    try {
+      const content = await readTextFile(file);
+      await api.importConfig(content);
+      await loadAll();
+      showFeedback('success', '配置已导入并生效');
+    } catch (error) {
+      showFeedback('error', `导入失败：${errorMessage(error)}`);
+    }
+  }
+
   if (!settings) {
     return (
       <div className="settings-loading">
@@ -250,14 +289,20 @@ export default function SettingsWindow() {
           <strong>Stock Pet</strong>
           <span>MONITOR STUDIO</span>
         </div>
-        {(['stocks', 'alerts', 'pet'] as const).map((item) => (
+        {(['stocks', 'alerts', 'pet', 'backup'] as const).map((item) => (
           <button
             key={item}
             type="button"
             className={`settings-tab ${tab === item ? 'active' : ''}`}
             onClick={() => setTab(item)}
           >
-            {item === 'stocks' ? '股票管理' : item === 'alerts' ? '提醒规则' : '宠物外观'}
+            {item === 'stocks'
+              ? '股票管理'
+              : item === 'alerts'
+                ? '提醒规则'
+                : item === 'pet'
+                  ? '宠物外观'
+                  : '备份配置'}
           </button>
         ))}
       </aside>
@@ -312,6 +357,8 @@ export default function SettingsWindow() {
             onSave={handleSaveSettings}
           />
         )}
+
+        {tab === 'backup' && <BackupTab onExport={handleExportConfig} onImport={handleImportConfig} />}
       </main>
     </div>
   );
@@ -763,6 +810,42 @@ function PetTab({
           <input type="checkbox" checked={settings.always_on_top} onChange={(event) => onChange({ always_on_top: event.target.checked })} />
           窗口置顶
         </label>
+      </section>
+    </div>
+  );
+}
+
+function BackupTab({
+  onExport,
+  onImport,
+}: {
+  onExport: () => void;
+  onImport: (file?: File) => void;
+}) {
+  return (
+    <div className="tab-content">
+      <h2>备份配置</h2>
+      <p className="backup-desc">
+        导出包含股票列表、提醒规则和宠物设置的 JSON 文件。重装或升级后导入即可恢复，方便跨版本使用。
+      </p>
+
+      <section className="form-section">
+        <div className="section-title">导出</div>
+        <button type="button" className="btn-primary" onClick={onExport}>
+          下载配置文件
+        </button>
+      </section>
+
+      <section className="form-section">
+        <div className="section-title">导入</div>
+        <input
+          type="file"
+          accept="application/json,.json"
+          onChange={(event) => {
+            onImport(event.target.files?.[0]);
+            event.target.value = '';
+          }}
+        />
       </section>
     </div>
   );

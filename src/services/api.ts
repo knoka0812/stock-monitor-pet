@@ -41,6 +41,8 @@ export const api = {
     invoke('add_rule', { rule }),
   updateRule: (rule: AlertRule): Promise<void> => invoke('update_rule', { rule }),
   deleteRule: (ruleId: string): Promise<void> => invoke('delete_rule', { ruleId }),
+  exportConfig: (): Promise<string> => invoke('export_config'),
+  importConfig: (payload: string): Promise<void> => invoke('import_config', { payload }),
   getSettings: (): Promise<PetSettings> => invoke('get_settings'),
   updateSettings: (settings: PetSettings): Promise<void> =>
     invoke('update_settings', { settings }),

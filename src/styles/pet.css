@@ -226,6 +226,9 @@ body {
 
 .stock-menu {
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 12px);
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 19px;
   background: linear-gradient(155deg, rgba(16, 38, 42, 0.84), rgba(10, 16, 26, 0.82));
@@ -237,6 +240,7 @@ body {
 }
 
 .stock-menu-header {
+  flex-shrink: 0;
   padding: 13px 17px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   color: rgba(228, 245, 247, 0.42);
@@ -245,8 +249,10 @@ body {
 }
 
 .stock-menu-list {
-  max-height: 270px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
@@ -268,6 +274,11 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   cursor: pointer;
   transition: background 0.18s;
+}
+
+.stock-menu-divider,
+.stock-menu-action {
+  flex-shrink: 0;
 }
 
 .stock-menu-item:last-child {

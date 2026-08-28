@@ -156,6 +156,26 @@ fn delete_rule(rule_id: String, state: State<AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn export_config(state: State<AppState>) -> Result<String, String> {
+    let data = state.data.lock();
+    serde_json::to_string_pretty(&*data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn import_config(payload: String, state: State<AppState>) -> Result<(), String> {
+    let imported: AppData = serde_json::from_str(&payload)
+        .map_err(|e| format!("配置文件无效：{e}"))?;
+
+    let mut data = state.data.lock();
+    *data = imported;
+    state.storage.save(&data).map_err(|e| e.to_string())?;
+    if let Some(app) = state.app.as_ref() {
+        let _ = app.emit("data-changed", ());
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn get_settings(state: State<AppState>) -> Result<PetSettings, String> {
     Ok(state.data.lock().settings.clone())
 }
@@ -292,6 +312,8 @@ pub fn run() {
             add_rule,
             update_rule,
             delete_rule,
+            export_config,
+            import_config,
             get_settings,
             update_settings,
             get_current_stock_code,
