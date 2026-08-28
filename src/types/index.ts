@@ -1,4 +1,4 @@
-export type Market = 'ashare' | 'hk' | 'us';
+export type Market = 'ashare' | 'hk' | 'us' | 'gold';
 
 export interface Stock {
   code: string;

@@ -53,6 +53,8 @@ fn parse_sina_line(symbol_part: &str, value_part: &str) -> Option<Quote> {
     } else if symbol_part.starts_with("gb_") {
         let code = symbol_part.trim_start_matches("gb_").to_uppercase();
         (Market::US, fields[0].to_string(), code)
+    } else if symbol_part.starts_with("hf_") {
+        (Market::Gold, fields[13].to_string(), "XAUUSD".to_string())
     } else {
         let code = symbol_part
             .trim_start_matches("sh")
@@ -102,6 +104,14 @@ fn parse_sina_line(symbol_part: &str, value_part: &str) -> Option<Quote> {
             let amount = volume as f64 * price;
             (price, prev_close, open, high, low, volume, amount)
         }
+        Market::Gold => {
+            let price: f64 = fields[0].parse().ok()?;
+            let prev_close: f64 = fields[7].parse().unwrap_or(price);
+            let open: f64 = fields[8].parse().unwrap_or(price);
+            let high: f64 = fields[4].parse().unwrap_or(price);
+            let low: f64 = fields[5].parse().unwrap_or(price);
+            (price, prev_close, open, high, low, 0, 0.0)
+        }
     };
 
     if price <= 0.0 {
@@ -141,15 +151,15 @@ pub fn parse_sina_body(body: &str) -> Result<Vec<Quote>> {
 
     for line in body.lines() {
         let line = line.trim();
-        if !line.starts_with("var hq_str_") {
+        if !line.starts_with("var hq_str") {
             continue;
         }
         let eq_pos = line
             .find('=')
             .ok_or_else(|| QuoteError::Parse("缺少 = ".into()))?;
-        let symbol_part = line
-            ["var hq_str_".len()..eq_pos]
+        let symbol_part = line["var hq_str".len()..eq_pos]
             .trim()
+            .trim_start_matches('_')
             .to_string();
         let value_part = line[eq_pos + 1..].trim().trim_matches(';').trim_matches('"');
         if value_part.is_empty() {
@@ -285,5 +295,22 @@ mod tests {
     fn test_parse_empty_body() {
         let body = r#"var hq_str_sh600519="";"#;
         assert!(parse_sina_body(body).is_err());
+    }
+
+    #[test]
+    fn test_parse_hf_gold_body() {
+        let body = r#"var hq_str_hf_XAU="4584.08,4601.580,4584.08,4584.43,4611.35,4571.63,14:34:00,4601.58,4603.23,0,0,0,2026-08-28,伦敦金（现货黄金）";"#;
+        let quotes = parse_sina_body(body).unwrap();
+        assert_eq!(quotes.len(), 1);
+        let quote = &quotes[0];
+        assert_eq!(quote.code, "XAUUSD");
+        assert_eq!(quote.name, "伦敦金（现货黄金）");
+        assert_eq!(quote.market, Market::Gold);
+        assert_eq!(quote.price, 4584.08);
+        assert_eq!(quote.prev_close, 4601.58);
+        assert_eq!(quote.open, 4603.23);
+        assert_eq!(quote.high, 4611.35);
+        assert_eq!(quote.low, 4571.63);
+        assert_eq!(quote.volume, 0);
     }
 }

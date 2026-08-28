@@ -75,5 +75,9 @@ export function isTradingOpen(markets: Market[]) {
     if (open) return true;
   }
 
+  if (markets.includes('gold')) {
+    if (asiaDay !== 0 && asiaDay !== 6) return true;
+  }
+
   return false;
 }

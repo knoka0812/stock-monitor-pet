@@ -17,6 +17,7 @@
     "core:window:allow-unminimize",
     "core:window:allow-create",
     "core:app:default",
-    "shell:default"
+    "shell:default",
+    "process:default"
   ]
 }

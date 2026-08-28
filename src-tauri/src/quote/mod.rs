@@ -34,6 +34,14 @@ pub fn detect_market_and_symbol(code: &str) -> Option<(Market, String)> {
         return None;
     }
 
+    // 国际黄金（XAUUSD / 现货黄金）
+    match code.as_str() {
+        "XAUUSD" | "XAU" | "GOLD" | "黄金" | "伦敦金" => {
+            return Some((Market::Gold, "hf_XAU".to_string()));
+        }
+        _ => {}
+    }
+
     // 腾讯格式前缀
     if let Some(rest) = code.strip_prefix("SH") {
         return Some((Market::AShare, format!("sh{}", rest.to_lowercase())));
@@ -148,5 +156,14 @@ mod tests {
     #[test]
     fn test_empty_code() {
         assert!(detect_market_and_symbol("").is_none());
+    }
+
+    #[test]
+    fn test_detect_gold_keywords() {
+        for keyword in ["XAUUSD", "xauusd", "XAU", "GOLD", "黄金", "伦敦金"] {
+            let (market, symbol) = detect_market_and_symbol(keyword).unwrap();
+            assert_eq!(market, Market::Gold);
+            assert_eq!(symbol, "hf_XAU");
+        }
     }
 }

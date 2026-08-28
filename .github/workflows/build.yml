@@ -62,7 +62,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Stock Monitor Pet v__VERSION__'
-          releaseBody: '跨平台股票监测桌面宠物，支持 A 股 / 港股 / 美股行情气泡、交易时段识别、提醒记录、多语言、浅色主题与配置迁移。'
+          releaseBody: '跨平台股票监测桌面宠物，支持 A 股 / 港股 / 美股 / 国际黄金行情气泡、交易时段识别、提醒记录、多语言、浅色主题与配置迁移。'
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}

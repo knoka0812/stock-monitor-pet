@@ -90,6 +90,19 @@ impl QuoteProvider for TencentProvider {
     }
 
     fn search(&self, keyword: &str) -> Result<Vec<Stock>> {
+        let keyword_trimmed = keyword.trim();
+        let keyword_upper = keyword_trimmed.to_uppercase();
+        if matches!(keyword_upper.as_str(), "XAUUSD" | "XAU" | "GOLD")
+            || matches!(keyword_trimmed, "黄金" | "伦敦金")
+        {
+            return Ok(vec![Stock {
+                code: "XAUUSD".into(),
+                name: "伦敦金（现货黄金）".into(),
+                market: Market::Gold,
+                tencent_symbol: "hf_XAU".into(),
+            }]);
+        }
+
         // 用建议接口（sug）搜索
         let url = format!(
             "https://smartbox.gtimg.cn/s3/?v=2&t=all&c=10&q={}",
@@ -163,8 +176,23 @@ fn parse_quote_body(body: &str) -> Result<Vec<Quote>> {
         }
         let eq_pos = line.find('=').ok_or_else(|| QuoteError::Parse("缺少 = ".into()))?;
         let symbol_part = &line[2..eq_pos];
-        let value_part = line[eq_pos + 1..].trim_matches('"');
+        let raw_value = line[eq_pos + 1..].trim();
+        let value_part = raw_value
+            .strip_prefix('"')
+            .and_then(|value| {
+                value
+                    .strip_suffix("\";")
+                    .or_else(|| value.strip_suffix('"'))
+            })
+            .unwrap_or(raw_value);
         if value_part.is_empty() {
+            continue;
+        }
+
+        if symbol_part.starts_with("hf_") {
+            if let Some(quote) = parse_hf_quote(symbol_part, value_part) {
+                quotes.push(quote);
+            }
             continue;
         }
 
@@ -225,6 +253,51 @@ fn parse_quote_body(body: &str) -> Result<Vec<Quote>> {
     Ok(quotes)
 }
 
+fn parse_hf_quote(symbol_part: &str, value_part: &str) -> Option<Quote> {
+    let fields: Vec<&str> = value_part.split(',').collect();
+    if fields.len() < 14 {
+        return None;
+    }
+
+    let price: f64 = fields[0].parse().ok()?;
+    let prev_close: f64 = fields[7].parse().unwrap_or(price);
+    let open: f64 = fields[8].parse().unwrap_or(price);
+    let high: f64 = fields[4].parse().unwrap_or(price);
+    let low: f64 = fields[5].parse().unwrap_or(price);
+    let name = fields[13].to_string();
+
+    if price <= 0.0 {
+        return None;
+    }
+
+    let change = if prev_close > 0.0 {
+        price - prev_close
+    } else {
+        0.0
+    };
+    let change_percent = if prev_close > 0.0 {
+        (change / prev_close) * 100.0
+    } else {
+        0.0
+    };
+
+    Some(Quote {
+        code: "XAUUSD".to_string(),
+        name,
+        market: Market::Gold,
+        price,
+        prev_close,
+        open,
+        high,
+        low,
+        volume: 0,
+        amount: 0.0,
+        change,
+        change_percent,
+        timestamp: Utc::now().timestamp(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -236,6 +309,24 @@ mod tests {
         let line = r#"v_sh600519="1~贵州茅台~600519~1680.00~1700.00~1690.00~123456~...""#;
         assert!(line.starts_with("v_sh"));
         assert!(line.contains('='));
+    }
+
+    #[test]
+    fn test_parse_hf_gold_line() {
+        let line = r#"v_hf_XAU="4583.21,-0.40,4583.21,4583.56,4611.35,4571.63,14:33:00,4601.58,4603.23,0,0,0,2026-08-28,伦敦金（现货黄金）";"#;
+        let quotes = parse_quote_body(line).unwrap();
+        assert_eq!(quotes.len(), 1);
+        let quote = &quotes[0];
+        assert_eq!(quote.code, "XAUUSD");
+        assert_eq!(quote.name, "伦敦金（现货黄金）");
+        assert_eq!(quote.market, Market::Gold);
+        assert_eq!(quote.price, 4583.21);
+        assert_eq!(quote.prev_close, 4601.58);
+        assert_eq!(quote.open, 4603.23);
+        assert_eq!(quote.high, 4611.35);
+        assert_eq!(quote.low, 4571.63);
+        assert_eq!(quote.volume, 0);
+        assert!((quote.change - (-18.37)).abs() < 1e-6);
     }
 
     #[test]

@@ -6,6 +6,7 @@ pub enum Market {
     AShare,
     HK,
     US,
+    Gold,
 }
 
 impl Market {
@@ -14,6 +15,7 @@ impl Market {
             Market::AShare => "A股",
             Market::HK => "港股",
             Market::US => "美股",
+            Market::Gold => "国际黄金",
         }
     }
 }

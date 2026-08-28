@@ -40,6 +40,7 @@ const zh = {
   marketAshare: 'A股',
   marketHk: '港股',
   marketUs: '美股',
+  marketGold: '黄金',
   newRule: '+ 新建规则',
   noRules: '暂无提醒规则，点击“新建规则”添加',
   unsavedRules: '{count} 条规则有未保存修改',
@@ -160,6 +161,7 @@ const en: Record<keyof typeof zh, string> = {
   marketAshare: 'A-share',
   marketHk: 'HK',
   marketUs: 'US',
+  marketGold: 'XAU',
   newRule: '+ New rule',
   noRules: 'No alert rules yet. Click "New rule" to add one.',
   unsavedRules: '{count} rules have unsaved changes',
@@ -265,7 +267,15 @@ export function localeFor(language: AppLanguage) {
 
 export function marketLabel(language: AppLanguage, market: Market) {
   const translate = createTranslator(language);
-  return translate(market === 'ashare' ? 'marketAshare' : market === 'hk' ? 'marketHk' : 'marketUs');
+  return translate(
+    market === 'ashare'
+      ? 'marketAshare'
+      : market === 'hk'
+        ? 'marketHk'
+        : market === 'us'
+          ? 'marketUs'
+          : 'marketGold',
+  );
 }
 
 export function applyTheme(theme: AppTheme) {

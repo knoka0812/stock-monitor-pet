@@ -286,6 +286,24 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
                 let _ = window.set_focus();
+            } else {
+                use tauri::WebviewWindowBuilder;
+                let _ = WebviewWindowBuilder::new(
+                    app,
+                    "main",
+                    tauri::WebviewUrl::App("index.html".into()),
+                )
+                .title("股票监测宠物")
+                .inner_size(320.0, 280.0)
+                .resizable(false)
+                .decorations(false)
+                .transparent(true)
+                .always_on_top(true)
+                .skip_taskbar(true)
+                .focused(false)
+                .shadow(false)
+                .background_color(tauri::utils::config::Color(0, 0, 0, 0))
+                .build();
             }
         }))
         .plugin(tauri_plugin_opener::init())
