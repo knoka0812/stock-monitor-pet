@@ -4,9 +4,9 @@ PawTrader 是一款开源跨平台桌面宠物。它以一只安静的小猫或�
 
 ![宠物正常状态](images/pet-normal.png)
 
-![Release](https://img.shields.io/github/v/release/knoka0812/stock-monitor-pet?sort=semver)
-![Build](https://github.com/knoka0812/stock-monitor-pet/actions/workflows/build.yml/badge.svg)
-![License](https://img.shields.io/github/license/knoka0812/stock-monitor-pet)
+![Release](https://img.shields.io/github/v/release/konka0812/stock-monitor-pet?sort=semver)
+![Build](https://github.com/konka0812/stock-monitor-pet/actions/workflows/build.yml/badge.svg)
+![License](https://img.shields.io/github/license/konka0812/stock-monitor-pet)
 
 ## 功能亮点
 
@@ -49,7 +49,7 @@ PawTrader 是一款开源跨平台桌面宠物。它以一只安静的小猫或�
 
 ## 下载安装
 
-前往 [Releases](https://github.com/knoka0812/stock-monitor-pet/releases) 下载最新版本：
+前往 [Releases](https://github.com/konka0812/stock-monitor-pet/releases) 下载最新版本：
 
 | 平台 | 安装包 |
 | --- | --- |
